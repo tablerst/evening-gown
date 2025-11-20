@@ -1,7 +1,13 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import ThemeToggle from './components/ThemeToggle.vue'
 import SlantedBlock from './components/SlantedBlock.vue'
 import CardGown from './components/CardGown.vue'
+import HeroBackground3D from './components/HeroBackground3D.vue'
+
+gsap.registerPlugin(ScrollTrigger)
 
 const gowns = [
   {
@@ -32,6 +38,59 @@ const gowns = [
     scene: 'Prom Night',
   },
 ]
+
+onMounted(() => {
+  // Hero Animation
+  const tl = gsap.timeline()
+  tl.from('.hero-title', { y: 50, opacity: 0, duration: 0.8, ease: 'power3.out' })
+    .from('.hero-subtitle', { y: 30, opacity: 0, duration: 0.8, ease: 'power3.out' }, '-=0.6')
+    .from('.hero-actions', { y: 20, opacity: 0, duration: 0.6, ease: 'power3.out' }, '-=0.6')
+    .from('.hero-visual', { x: 50, opacity: 0, duration: 1, ease: 'power3.out' }, '-=0.8')
+
+  // Section Headers
+  gsap.utils.toArray<HTMLElement>('.section-header').forEach((header) => {
+    gsap.from(header, {
+      scrollTrigger: {
+        trigger: header,
+        start: 'top 85%',
+        toggleActions: 'play none none none', // once
+      },
+      y: 30,
+      opacity: 0,
+      duration: 0.8,
+      ease: 'power3.out',
+    })
+  })
+
+  // Cards Stagger (Selling Points & Gowns)
+  gsap.utils.toArray<HTMLElement>('.grid-3').forEach((grid) => {
+    gsap.from(grid.children, {
+      scrollTrigger: {
+        trigger: grid,
+        start: 'top 85%',
+      },
+      y: 50,
+      opacity: 0,
+      duration: 0.6,
+      stagger: 0.1,
+      ease: 'power3.out',
+    })
+  })
+
+  // Slanted Blocks
+  gsap.utils.toArray<HTMLElement>('.slanted-block').forEach((block) => {
+    gsap.from(block, {
+      scrollTrigger: {
+        trigger: block,
+        start: 'top 85%',
+      },
+      opacity: 0,
+      scale: 0.98,
+      duration: 1,
+      ease: 'power2.out',
+    })
+  })
+})
 </script>
 
 <template>
@@ -79,7 +138,7 @@ const gowns = [
               image="https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=1000&auto=format&fit=crop"
               overlay-color="rgba(91, 58, 122, 0.2)"
             >
-              <!-- 3D Canvas would go here -->
+              <HeroBackground3D />
             </SlantedBlock>
           </div>
         </div>
@@ -153,7 +212,108 @@ const gowns = [
         </SlantedBlock>
       </section>
 
-      <!-- 7. CTA -->
+      <!-- 5. Customer Gallery -->
+      <section class="section gallery-section">
+        <div class="container">
+          <div
+            class="section-header text-center"
+            style="justify-content: center; flex-direction: column"
+          >
+            <h2>她们的高光时刻</h2>
+            <p class="subtitle">来自真实客户的返图</p>
+          </div>
+          <div class="gallery-grid">
+            <div class="gallery-item" v-for="i in 4" :key="i">
+              <img
+                :src="`https://images.unsplash.com/photo-${
+                  [
+                    '1515934751635-c81c6bc9a2d8',
+                    '1469334031218-e382a71b716b',
+                    '1566737236500-c8ac43014a67',
+                    '1595777457583-95e059d581b8',
+                  ][i - 1]
+                }?q=80&w=400&h=500&auto=format&fit=crop`"
+                alt="Customer"
+                loading="lazy"
+              />
+              <div class="gallery-tag">
+                <span>{{
+                  ['上海 · 婚礼', '北京 · 年会', '深圳 · 晚宴', '杭州 · 旅拍'][i - 1]
+                }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. Process Section -->
+      <section class="section process-section">
+        <div class="container">
+          <div
+            class="section-header text-center"
+            style="justify-content: center; flex-direction: column"
+          >
+            <h2>定制流程</h2>
+            <p class="subtitle">从量体到成衣的专属体验</p>
+          </div>
+          <div class="process-steps">
+            <div class="step-item">
+              <div class="step-icon">1</div>
+              <h4>预约咨询</h4>
+              <p>线上预约，专属顾问一对一沟通需求</p>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-item">
+              <div class="step-icon">2</div>
+              <h4>量体试纱</h4>
+              <p>到店精准量体，试穿多款样衣</p>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-item">
+              <div class="step-icon">3</div>
+              <h4>精细调整</h4>
+              <p>根据身形数据进行微调修改</p>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-item">
+              <div class="step-icon">4</div>
+              <h4>完美交付</h4>
+              <p>最终试穿确认，包装交付</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. FAQ Section -->
+      <section class="section faq-section">
+        <div class="container container-narrow">
+          <div class="section-header text-center" style="justify-content: center">
+            <h2>常见问题</h2>
+          </div>
+          <div class="faq-list">
+            <details class="faq-item">
+              <summary>需要提前多久预约？</summary>
+              <p>
+                建议提前 3-7 天预约试纱，以便我们为您安排专属顾问和试衣间。如果是定制礼服，建议提前
+                2-3 个月。
+              </p>
+            </details>
+            <details class="faq-item">
+              <summary>试纱是否收费？</summary>
+              <p>
+                首次试纱提供 3
+                件免费试穿体验。如需更多款式试穿或专业造型服务，会收取一定的试纱费，该费用可在定单时抵扣。
+              </p>
+            </details>
+            <details class="faq-item">
+              <summary>可以租赁吗？</summary>
+              <p>是的，我们提供高定礼服的租赁服务，租期通常为 3 天。同时也提供量身定制购买服务。</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. CTA -->
       <section class="cta-section">
         <SlantedBlock
           direction="right"
@@ -512,5 +672,164 @@ const gowns = [
       opacity: 1;
     }
   }
+}
+
+// Gallery
+.gallery-section {
+  background: var(--color-bg-section-alt);
+}
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: vars.$space-4;
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.gallery-item {
+  position: relative;
+  border-radius: vars.$radius-md;
+  overflow: hidden;
+  aspect-ratio: 3/4;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+  }
+
+  &:hover img {
+    transform: scale(1.05);
+  }
+
+  .gallery-tag {
+    position: absolute;
+    bottom: vars.$space-3;
+    left: vars.$space-3;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 4px 12px;
+    border-radius: vars.$radius-pill;
+    font-size: vars.$font-size-xs;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+}
+
+// Process
+.process-section {
+  background: var(--color-bg-page);
+}
+.process-steps {
+  display: flex;
+  flex-direction: column;
+  gap: vars.$space-6;
+  align-items: center;
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+}
+.step-item {
+  text-align: center;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  .step-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--color-brand-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: vars.$space-3;
+    font-family: vars.$font-family-serif;
+    font-size: vars.$font-size-lg;
+  }
+
+  h4 {
+    margin-bottom: vars.$space-2;
+    color: var(--color-brand-dark);
+  }
+
+  p {
+    font-size: vars.$font-size-sm;
+    color: var(--color-text-secondary);
+    max-width: 200px;
+  }
+}
+.step-connector {
+  display: none;
+  @media (min-width: 768px) {
+    display: block;
+    height: 1px;
+    background: var(--color-gold-400);
+    flex: 0.5;
+    margin-top: 24px; // Half of icon height
+  }
+}
+
+// FAQ
+.faq-section {
+  background: var(--color-bg-section-alt);
+}
+.container-narrow {
+  max-width: 840px;
+  margin: 0 auto;
+}
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: vars.$space-4;
+}
+.faq-item {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: vars.$space-4;
+
+  summary {
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+    position: relative;
+    padding-right: 24px;
+    color: var(--color-text-primary);
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &::after {
+      content: '+';
+      position: absolute;
+      right: 0;
+      color: var(--color-brand-primary);
+      font-weight: 300;
+      font-size: 1.5rem;
+      line-height: 1;
+    }
+  }
+
+  &[open] summary::after {
+    content: '-';
+  }
+
+  p {
+    margin-top: vars.$space-3;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    font-size: vars.$font-size-sm;
+  }
+}
+
+.subtitle {
+  color: var(--color-text-secondary);
+  margin-top: vars.$space-2;
 }
 </style>
