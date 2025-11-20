@@ -12,8 +12,16 @@
 - **Framework**: Vue 3, Pinia, Vue Router
 - **Build Tool**: Vite
 - **Styling**: Sass (SCSS), OKLCH Color Space
-- **Motion**: GSAP (ScrollTrigger)
+- **Motion**: GSAP (ScrollTrigger, SplitText implementation)
 - **3D**: Three.js
+
+## ✨ 新特性
+
+### 1. 视觉交互
+- **斜切遮罩 (Slanted Gradient Mask)**: 实现了基于 CSS Gradient 的斜切遮罩效果 (`SlantedBlock.vue`)，支持图片底色上叠加渐变遮罩，确保文字清晰可见，替代了简单的 `clip-path` 裁剪方案。
+- **微动效 (Micro-interactions)**: 
+  - 实现了自定义的文本分割工具 (`src/utils/textAnimation.ts`)，模拟 GSAP SplitText 效果。
+  - 标题文字入场采用字符级交错动画 (Staggered Character Animation)。
 
 ## 🎨 主题系统
 

@@ -7,29 +7,22 @@ interface Props {
   overlayColor?: string
   image?: string
   height?: string
+  slantedMask?: boolean // Enable gradient mask mode
+  maskAngle?: string // Custom angle for gradient mask (e.g. "45deg")
+  maskColor?: string // Color for the gradient mask
 }
 
 const props = withDefaults(defineProps<Props>(), {
   direction: 'right',
   bgColor: 'var(--color-bg-hero)',
   height: 'auto',
+  slantedMask: false,
+  maskAngle: '45deg',
+  maskColor: '#ffffff'
 })
 
 const clipPath = computed(() => {
-  // 12deg slant
-  // right: top-left to bottom-right slant? Or just a simple angle?
-  // DESIGN.md says "Hero right side image area background"
-  // Let's implement a standard slanted divider look.
-  // Polygon points: top-left, top-right, bottom-right, bottom-left
-
-  // If direction is 'right' (slanting down to right):
-  // 0 0, 100% 0, 100% 85%, 0 100%
-
-  // If direction is 'left' (slanting down to left):
-  // 0 0, 100% 0, 100% 100%, 0 85%
-
-  // Actually, DESIGN.md mentions "Slanted Mask Block" for Hero right side.
-  // Let's make it flexible.
+  if (props.slantedMask) return 'none' // No physical clip in mask mode
 
   if (props.direction === 'right') {
     return 'polygon(0 0, 100% 0, 100% 85%, 0 100%)'
@@ -45,15 +38,37 @@ const style = computed(() => ({
   position: 'relative' as const,
 }))
 
-const overlayStyle = computed(() => ({
-  backgroundColor: props.overlayColor,
-  position: 'absolute' as const,
-  top: 0,
-  left: 0,
-  width: '100%',
-  height: '100%',
-  zIndex: 1,
-}))
+const overlayStyle = computed(() => {
+  if (props.slantedMask) {
+    // Gradient mask logic
+    const angle = props.maskAngle
+    
+    // Use color-mix to create a transparent version of the mask color
+    // This ensures the gradient fades to transparent of the SAME color (avoiding gray/blackish fade)
+    const startColor = props.maskColor
+    const endColor = `color-mix(in srgb, ${startColor}, transparent)`
+    
+    return {
+        background: `linear-gradient(${angle}, ${startColor} 30%, ${endColor} 70%)`,
+        position: 'absolute' as const,
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 1,
+    }
+  }
+
+  return {
+    backgroundColor: props.overlayColor,
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    zIndex: 1,
+  }
+})
 </script>
 
 <template>

@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, nextTick } from 'vue'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import ThemeToggle from './components/ThemeToggle.vue'
 import SlantedBlock from './components/SlantedBlock.vue'
 import CardGown from './components/CardGown.vue'
 import HeroBackground3D from './components/HeroBackground3D.vue'
+import { splitTextToSpans } from './utils/textAnimation'
 
 gsap.registerPlugin(ScrollTrigger)
+// ... existing gowns data ...
 
 const gowns = [
   {
@@ -42,8 +44,37 @@ const gowns = [
 onMounted(() => {
   // Hero Animation
   const tl = gsap.timeline()
-  tl.from('.hero-title', { y: 50, opacity: 0, duration: 0.8, ease: 'power3.out' })
-    .from('.hero-subtitle', { y: 30, opacity: 0, duration: 0.8, ease: 'power3.out' }, '-=0.6')
+
+  // Text Split Animation
+  const titleLine1 = document.querySelector('.hero-title-line-1') as HTMLElement
+  const titleLine2 = document.querySelector('.hero-title-line-2') as HTMLElement
+
+  if (titleLine1 && titleLine2) {
+    const chars1 = splitTextToSpans(titleLine1, 'chars')
+    const chars2 = splitTextToSpans(titleLine2, 'chars')
+
+    tl.from(chars1, {
+      opacity: 0,
+      y: 80,
+      rotateX: -90,
+      stagger: 0.05,
+      duration: 1,
+      ease: 'back.out(1.7)',
+    })
+      .from(chars2, {
+        opacity: 0,
+        y: 80,
+        rotateX: -90,
+        stagger: 0.05,
+        duration: 1,
+        ease: 'back.out(1.7)',
+      }, '-=0.8')
+  } else {
+    // Fallback if split fails or elements missing
+    tl.from('.hero-title', { y: 50, opacity: 0, duration: 0.8, ease: 'power3.out' })
+  }
+
+  tl.from('.hero-subtitle', { y: 30, opacity: 0, duration: 0.8, ease: 'power3.out' }, '-=0.6')
     .from('.hero-actions', { y: 20, opacity: 0, duration: 0.6, ease: 'power3.out' }, '-=0.6')
     .from('.hero-visual', { x: 50, opacity: 0, duration: 1, ease: 'power3.out' }, '-=0.8')
 
@@ -111,37 +142,32 @@ onMounted(() => {
     <main>
       <!-- 1. Hero Section -->
       <section class="hero-section">
-        <div class="container hero-container">
-          <div class="hero-content">
-            <h1 class="hero-title">
-              Elegance <br />
-              <span class="font-serif italic">Redefined</span>
-            </h1>
-            <p class="hero-subtitle">专为重要时刻打造的高定礼服系列。淡雅紫金，诠释不凡气质。</p>
-            <div class="hero-actions">
-              <button class="btn btn--primary btn--lg">预约试纱</button>
-              <button class="btn btn--ghost">探索系列 &rarr;</button>
+        <SlantedBlock direction="right" height="80vh" bg-color="var(--color-bg-page)"
+          image="https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=1000&auto=format&fit=crop"
+          slanted-mask mask-angle="45deg">
+          <div class="container hero-container">
+            <div class="hero-content">
+              <h1 class="hero-title">
+                <span class="hero-title-line-1 block">Elegance</span>
+                <span class="hero-title-line-2 font-serif italic block text-brand-primary">Redefined</span>
+              </h1>
+              <p class="hero-subtitle">专为重要时刻打造的高定礼服系列。淡雅紫金，诠释不凡气质。</p>
+              <div class="hero-actions">
+                <button class="btn btn--primary btn--lg">预约试纱</button>
+                <button class="btn btn--ghost">探索系列 &rarr;</button>
+              </div>
+              <div class="hero-meta">
+                <span>高端定制</span>
+                <span class="divider">|</span>
+                <span>私人顾问</span>
+              </div>
             </div>
-            <div class="hero-meta">
-              <span>高端定制</span>
-              <span class="divider">|</span>
-              <span>私人顾问</span>
-            </div>
-          </div>
 
-          <div class="hero-visual">
-            <!-- Placeholder for 3D Scene / Slanted Block -->
-            <SlantedBlock
-              direction="right"
-              height="600px"
-              bg-color="var(--color-purple-100)"
-              image="https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=1000&auto=format&fit=crop"
-              overlay-color="rgba(91, 58, 122, 0.2)"
-            >
+            <div class="hero-visual-wrapper">
               <HeroBackground3D />
-            </SlantedBlock>
+            </div>
           </div>
-        </div>
+        </SlantedBlock>
       </section>
 
       <!-- 2. Selling Points -->
@@ -191,8 +217,8 @@ onMounted(() => {
 
       <!-- 4. Scene Story -->
       <section class="scene-story">
-        <SlantedBlock direction="left" height="500px" bg-color="var(--color-neutral-0)">
-          <div class="container grid-2 h-full items-center">
+        <SlantedBlock direction="left" height="500px" bg-color="var(--color-neutral-0)" slanted-mask>
+          <div class="container grid-2 h-full items-center relative z-10">
             <div class="story-content">
               <span class="overline">SCENE 01</span>
               <h2>璀璨晚宴</h2>
@@ -202,11 +228,8 @@ onMounted(() => {
               <button class="btn btn--ghost">阅读故事</button>
             </div>
             <div class="story-image">
-              <img
-                src="https://images.unsplash.com/photo-1530021232320-685d8d67d594?q=80&w=800&auto=format&fit=crop"
-                alt="Party"
-                class="rounded-lg shadow-lg"
-              />
+              <img src="https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=800&auto=format&fit=crop"
+                alt="Party" class="rounded-lg shadow-lg" />
             </div>
           </div>
         </SlantedBlock>
@@ -215,31 +238,23 @@ onMounted(() => {
       <!-- 5. Customer Gallery -->
       <section class="section gallery-section">
         <div class="container">
-          <div
-            class="section-header text-center"
-            style="justify-content: center; flex-direction: column"
-          >
+          <div class="section-header text-center" style="justify-content: center; flex-direction: column">
             <h2>她们的高光时刻</h2>
             <p class="subtitle">来自真实客户的返图</p>
           </div>
           <div class="gallery-grid">
             <div class="gallery-item" v-for="i in 4" :key="i">
-              <img
-                :src="`https://images.unsplash.com/photo-${
-                  [
-                    '1515934751635-c81c6bc9a2d8',
-                    '1469334031218-e382a71b716b',
-                    '1566737236500-c8ac43014a67',
-                    '1595777457583-95e059d581b8',
-                  ][i - 1]
-                }?q=80&w=400&h=500&auto=format&fit=crop`"
-                alt="Customer"
-                loading="lazy"
-              />
+              <img :src="`https://images.unsplash.com/photo-${[
+                  '1515934751635-c81c6bc9a2d8',
+                  '1469334031218-e382a71b716b',
+                  '1566737236500-c8ac43014a67',
+                  '1595777457583-95e059d581b8',
+                ][i - 1]
+                }?q=80&w=400&h=500&auto=format&fit=crop`" alt="Customer" loading="lazy" />
               <div class="gallery-tag">
                 <span>{{
                   ['上海 · 婚礼', '北京 · 年会', '深圳 · 晚宴', '杭州 · 旅拍'][i - 1]
-                }}</span>
+                  }}</span>
               </div>
             </div>
           </div>
@@ -249,10 +264,7 @@ onMounted(() => {
       <!-- 6. Process Section -->
       <section class="section process-section">
         <div class="container">
-          <div
-            class="section-header text-center"
-            style="justify-content: center; flex-direction: column"
-          >
+          <div class="section-header text-center" style="justify-content: center; flex-direction: column">
             <h2>定制流程</h2>
             <p class="subtitle">从量体到成衣的专属体验</p>
           </div>
@@ -315,19 +327,13 @@ onMounted(() => {
 
       <!-- 8. CTA -->
       <section class="cta-section">
-        <SlantedBlock
-          direction="right"
-          height="400px"
-          bg-color="var(--color-purple-700)"
-          overlay-color="rgba(0,0,0,0.3)"
-        >
+        <SlantedBlock direction="right" height="400px" bg-color="var(--color-purple-700)"
+          overlay-color="rgba(0,0,0,0.3)">
           <div class="container h-full flex-center flex-col text-inverse">
             <h2>准备好闪耀全场了吗？</h2>
             <p class="mb-6">立即预约您的私人试纱体验</p>
-            <button
-              class="btn btn--primary btn--lg"
-              style="background: var(--color-gold-400); color: var(--color-neutral-800)"
-            >
+            <button class="btn btn--primary btn--lg"
+              style="background: var(--color-gold-400); color: var(--color-neutral-800)">
               立即预约
             </button>
           </div>
@@ -403,6 +409,7 @@ onMounted(() => {
     font-size: vars.$font-size-sm;
     font-weight: 500;
     color: var(--color-text-primary);
+
     &:hover {
       color: var(--color-brand-primary);
     }
@@ -444,9 +451,16 @@ onMounted(() => {
   margin-bottom: vars.$space-4;
   color: var(--color-brand-dark);
 
+  .block {
+    display: block;
+  }
+
+  .text-brand-primary {
+    color: var(--color-brand-primary);
+  }
+
   .italic {
     font-style: italic;
-    color: var(--color-brand-primary);
   }
 }
 
@@ -615,30 +629,38 @@ onMounted(() => {
 .h-full {
   height: 100%;
 }
+
 .items-center {
   align-items: center;
 }
+
 .flex-center {
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 .flex-col {
   flex-direction: column;
 }
+
 .text-inverse {
   color: var(--color-text-inverse);
   text-align: center;
 }
+
 .mb-6 {
   margin-bottom: vars.$space-6;
 }
+
 .mt-8 {
   margin-top: vars.$space-8;
 }
+
 .rounded-lg {
   border-radius: vars.$radius-lg;
 }
+
 .shadow-lg {
   box-shadow: vars.$shadow-md;
 }
@@ -668,6 +690,7 @@ onMounted(() => {
     display: block;
     margin-bottom: vars.$space-2;
     opacity: 0.7;
+
     &:hover {
       opacity: 1;
     }
@@ -678,14 +701,17 @@ onMounted(() => {
 .gallery-section {
   background: var(--color-bg-section-alt);
 }
+
 .gallery-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: vars.$space-4;
+
   @media (min-width: 768px) {
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
 .gallery-item {
   position: relative;
   border-radius: vars.$radius-md;
@@ -720,6 +746,7 @@ onMounted(() => {
 .process-section {
   background: var(--color-bg-page);
 }
+
 .process-steps {
   display: flex;
   flex-direction: column;
@@ -732,6 +759,7 @@ onMounted(() => {
     align-items: flex-start;
   }
 }
+
 .step-item {
   text-align: center;
   flex: 1;
@@ -765,8 +793,10 @@ onMounted(() => {
     max-width: 200px;
   }
 }
+
 .step-connector {
   display: none;
+
   @media (min-width: 768px) {
     display: block;
     height: 1px;
@@ -780,15 +810,18 @@ onMounted(() => {
 .faq-section {
   background: var(--color-bg-section-alt);
 }
+
 .container-narrow {
   max-width: 840px;
   margin: 0 auto;
 }
+
 .faq-list {
   display: flex;
   flex-direction: column;
   gap: vars.$space-4;
 }
+
 .faq-item {
   border-bottom: 1px solid var(--color-border-subtle);
   padding-bottom: vars.$space-4;
