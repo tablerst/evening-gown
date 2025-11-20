@@ -5,7 +5,6 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import ThemeToggle from './components/ThemeToggle.vue'
 import SlantedBlock from './components/SlantedBlock.vue'
 import CardGown from './components/CardGown.vue'
-import HeroBackground3D from './components/HeroBackground3D.vue'
 import { splitTextToSpans } from './utils/textAnimation'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -76,7 +75,7 @@ onMounted(() => {
 
   tl.from('.hero-subtitle', { y: 30, opacity: 0, duration: 0.8, ease: 'power3.out' }, '-=0.6')
     .from('.hero-actions', { y: 20, opacity: 0, duration: 0.6, ease: 'power3.out' }, '-=0.6')
-    .from('.hero-visual', { x: 50, opacity: 0, duration: 1, ease: 'power3.out' }, '-=0.8')
+  // .hero-visual animation removed as the element is empty/removed
 
   // Section Headers
   gsap.utils.toArray<HTMLElement>('.section-header').forEach((header) => {
@@ -121,6 +120,54 @@ onMounted(() => {
       ease: 'power2.out',
     })
   })
+
+  // FAQ Animation
+  const faqItems = gsap.utils.toArray('.faq-item')
+  if (faqItems.length) {
+    gsap.from(faqItems, {
+      scrollTrigger: {
+        trigger: '.faq-list',
+        start: 'top 85%',
+      },
+      y: 20,
+      opacity: 0,
+      duration: 0.5,
+      stagger: 0.1,
+      ease: 'power2.out',
+    })
+  }
+
+  // CTA Animation
+  const ctaContent = document.querySelector('.cta-content')
+  if (ctaContent) {
+    gsap.from(ctaContent.children, {
+      scrollTrigger: {
+        trigger: '.cta-section',
+        start: 'top 70%',
+      },
+      y: 30,
+      opacity: 0,
+      duration: 0.8,
+      stagger: 0.2,
+      ease: 'power3.out',
+    })
+  }
+
+  // Footer Animation
+  const footerContent = document.querySelector('.footer-content')
+  if (footerContent) {
+    gsap.from(footerContent.children, {
+      scrollTrigger: {
+        trigger: '.app-footer',
+        start: 'top 95%',
+      },
+      y: 20,
+      opacity: 0,
+      duration: 0.8,
+      stagger: 0.1,
+      ease: 'power2.out',
+    })
+  }
 })
 </script>
 
@@ -164,7 +211,7 @@ onMounted(() => {
             </div>
 
             <div class="hero-visual-wrapper">
-              <HeroBackground3D />
+              <!-- HeroBackground3D removed as requested -->
             </div>
           </div>
         </SlantedBlock>
@@ -245,11 +292,11 @@ onMounted(() => {
           <div class="gallery-grid">
             <div class="gallery-item" v-for="i in 4" :key="i">
               <img :src="`https://images.unsplash.com/photo-${[
-                  '1515934751635-c81c6bc9a2d8',
-                  '1469334031218-e382a71b716b',
-                  '1566737236500-c8ac43014a67',
-                  '1595777457583-95e059d581b8',
-                ][i - 1]
+                '1515934751635-c81c6bc9a2d8',
+                '1469334031218-e382a71b716b',
+                '1566737236500-c8ac43014a67',
+                '1595777457583-95e059d581b8',
+              ][i - 1]
                 }?q=80&w=400&h=500&auto=format&fit=crop`" alt="Customer" loading="lazy" />
               <div class="gallery-tag">
                 <span>{{
@@ -327,14 +374,16 @@ onMounted(() => {
 
       <!-- 8. CTA -->
       <section class="cta-section">
-        <SlantedBlock direction="right" height="400px" bg-color="var(--color-purple-700)"
-          overlay-color="rgba(0,0,0,0.3)">
-          <div class="container h-full flex-center flex-col text-inverse">
-            <h2>准备好闪耀全场了吗？</h2>
-            <p class="mb-6">立即预约您的私人试纱体验</p>
-            <button class="btn btn--primary btn--lg"
-              style="background: var(--color-gold-400); color: var(--color-neutral-800)">
-              立即预约
+        <SlantedBlock direction="right" height="500px" bg-color="#2b2730" overlay-color="rgba(0,0,0,0.4)">
+          <div class="container h-full flex-center flex-col text-inverse cta-content">
+            <span class="cta-overline">RESERVATION</span>
+            <h2 class="cta-title">开启您的璀璨时刻</h2>
+            <p class="mb-6 cta-subtitle">
+              即刻预约私人试纱，让专业顾问为您寻找命中注定的那件礼服。<br />
+              体验独一无二的高定魅力。
+            </p>
+            <button class="btn btn--primary btn--lg cta-btn">
+              立即预约试纱
             </button>
           </div>
         </SlantedBlock>
@@ -343,20 +392,56 @@ onMounted(() => {
 
     <footer class="app-footer">
       <div class="container">
-        <div class="footer-content">
-          <div class="brand-col">
-            <h2 class="brand">Evening Gown</h2>
-            <p>© 2025 All Rights Reserved.</p>
+        <div class="footer-top">
+          <div class="footer-col brand-col">
+            <h2 class="brand-footer">Evening Gown</h2>
+            <p class="brand-desc">
+              专注于高端晚礼服定制，融合现代美学与传统工艺，为每一位女性打造专属的高光时刻。
+            </p>
+            <div class="social-links">
+              <a href="#" class="social-link">WeChat</a>
+              <a href="#" class="social-link">RedBook</a>
+              <a href="#" class="social-link">Instagram</a>
+            </div>
           </div>
-          <div class="links-col">
-            <h4>关于</h4>
-            <a href="#">品牌故事</a>
-            <a href="#">设计师</a>
+
+          <div class="footer-col">
+            <h4>探索系列</h4>
+            <nav class="footer-nav">
+              <a href="#">当季新品</a>
+              <a href="#">经典系列</a>
+              <a href="#">明星同款</a>
+              <a href="#">配饰系列</a>
+            </nav>
           </div>
-          <div class="links-col">
-            <h4>服务</h4>
-            <a href="#">预约试纱</a>
-            <a href="#">定制流程</a>
+
+          <div class="footer-col">
+            <h4>关于品牌</h4>
+            <nav class="footer-nav">
+              <a href="#">品牌故事</a>
+              <a href="#">设计师团队</a>
+              <a href="#">工艺工坊</a>
+              <a href="#">加入我们</a>
+            </nav>
+          </div>
+
+          <div class="footer-col">
+            <h4>联系我们</h4>
+            <div class="contact-info">
+              <p>📍 上海市静安区南京西路 1266 号</p>
+              <p>📞 021-8888 9999</p>
+              <p>✉️ contact@eveninggown.com</p>
+              <p>🕒 10:00 - 20:00 (需预约)</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <p class="copyright">© 2025 Evening Gown. All Rights Reserved.</p>
+          <div class="legal-links">
+            <a href="#">隐私政策</a>
+            <span class="divider">|</span>
+            <a href="#">服务条款</a>
           </div>
         </div>
       </div>
@@ -488,7 +573,7 @@ onMounted(() => {
   }
 }
 
-.hero-visual {
+.hero-visual-wrapper {
   position: relative;
   height: 400px;
   width: 100%;
@@ -667,33 +752,188 @@ onMounted(() => {
 
 // Footer
 .app-footer {
-  background: var(--color-neutral-800);
-  color: var(--color-neutral-200);
-  padding: vars.$space-8 0;
+  background-color: vars.$color-neutral-800;
+  color: vars.$color-neutral-200;
+  padding-top: vars.$space-8;
+  padding-bottom: vars.$space-6;
+  margin-top: auto;
+  border-top: 4px solid var(--color-brand-primary);
 
-  .footer-content {
+  .footer-top {
     display: grid;
     grid-template-columns: 1fr;
     gap: vars.$space-8;
+    margin-bottom: vars.$space-8;
 
     @media (min-width: 768px) {
-      grid-template-columns: 2fr 1fr 1fr;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (min-width: 1024px) {
+      grid-template-columns: 2fr 1fr 1fr 1.5fr;
+    }
+  }
+
+  .brand-footer {
+    font-family: vars.$font-family-serif;
+    font-size: vars.$font-size-2xl;
+    color: vars.$color-gold-100;
+    margin-bottom: vars.$space-4;
+  }
+
+  .brand-desc {
+    font-size: vars.$font-size-sm;
+    line-height: 1.6;
+    opacity: 0.8;
+    margin-bottom: vars.$space-5;
+    max-width: 300px;
+    color: vars.$color-neutral-200;
+  }
+
+  .social-links {
+    display: flex;
+    gap: vars.$space-4;
+
+    .social-link {
+      font-size: vars.$font-size-xs;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 0;
+      border-bottom: 1px solid transparent;
+      color: vars.$color-neutral-200;
+      text-decoration: none;
+
+      &:hover {
+        color: var(--color-brand-accent);
+        border-color: var(--color-brand-accent);
+        transform: none;
+      }
     }
   }
 
   h4 {
-    color: white;
-    margin-bottom: vars.$space-4;
+    color: vars.$color-gold-100;
+    margin-bottom: vars.$space-5;
+    font-family: vars.$font-family-serif;
+    font-size: vars.$font-size-lg;
+    letter-spacing: 0.05em;
   }
 
-  a {
-    display: block;
-    margin-bottom: vars.$space-2;
-    opacity: 0.7;
+  .footer-nav {
+    display: flex;
+    flex-direction: column;
+    gap: vars.$space-3;
 
-    &:hover {
-      opacity: 1;
+    a {
+      font-size: vars.$font-size-sm;
+      opacity: 0.8;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      color: vars.$color-neutral-200;
+      width: fit-content;
+
+      &:hover {
+        opacity: 1;
+        color: var(--color-brand-accent);
+        transform: translateX(4px);
+      }
     }
+  }
+
+  .contact-info {
+    display: flex;
+    flex-direction: column;
+    gap: vars.$space-3;
+
+    p {
+      font-size: vars.$font-size-sm;
+      opacity: 0.8;
+      display: flex;
+      align-items: center;
+      gap: vars.$space-2;
+      color: vars.$color-neutral-200;
+    }
+  }
+
+  .footer-bottom {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: vars.$space-6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: vars.$space-4;
+    font-size: vars.$font-size-xs;
+    opacity: 0.6;
+    color: vars.$color-neutral-200;
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      justify-content: space-between;
+    }
+
+    .legal-links {
+      display: flex;
+      gap: vars.$space-4;
+
+      a {
+        color: inherit;
+        text-decoration: none;
+
+        &:hover {
+          text-decoration: underline;
+          color: vars.$color-gold-100;
+        }
+      }
+    }
+  }
+}
+
+// CTA Styles
+.cta-overline {
+  font-size: vars.$font-size-xs;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: vars.$color-gold-400;
+  margin-bottom: vars.$space-3;
+  font-weight: 600;
+}
+
+.cta-title {
+  font-family: vars.$font-family-serif;
+  font-size: vars.$font-size-4xl;
+  margin-bottom: vars.$space-4;
+  line-height: 1.2;
+  color: vars.$color-gold-100;
+
+  @media (min-width: 768px) {
+    font-size: 3.5rem;
+  }
+}
+
+.cta-subtitle {
+  font-size: vars.$font-size-lg;
+  opacity: 0.9;
+  max-width: 600px;
+  line-height: 1.6;
+  margin-bottom: vars.$space-8;
+  color: vars.$color-purple-100;
+}
+
+.cta-btn {
+  background: var(--color-neutral-0) !important;
+  color: var(--color-brand-dark) !important;
+  border: none;
+  font-weight: 600;
+  padding: 1.2rem 3.5rem;
+  font-size: vars.$font-size-md;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+    background: var(--color-brand-accent) !important;
+    color: var(--color-neutral-800) !important;
   }
 }
 
@@ -824,15 +1064,20 @@ onMounted(() => {
 
 .faq-item {
   border-bottom: 1px solid var(--color-border-subtle);
-  padding-bottom: vars.$space-4;
+  padding: vars.$space-4 0; // Increased padding
 
   summary {
     font-weight: 600;
     cursor: pointer;
     list-style: none;
     position: relative;
-    padding-right: 24px;
+    padding-right: 32px;
     color: var(--color-text-primary);
+    transition: color 0.3s ease;
+
+    &:hover {
+      color: var(--color-brand-primary);
+    }
 
     &::-webkit-details-marker {
       display: none;
@@ -842,15 +1087,18 @@ onMounted(() => {
       content: '+';
       position: absolute;
       right: 0;
+      top: 50%;
+      transform: translateY(-50%);
       color: var(--color-brand-primary);
       font-weight: 300;
       font-size: 1.5rem;
       line-height: 1;
+      transition: transform 0.3s ease;
     }
   }
 
   &[open] summary::after {
-    content: '-';
+    transform: translateY(-50%) rotate(45deg); // Rotate animation
   }
 
   p {
@@ -858,6 +1106,20 @@ onMounted(() => {
     color: var(--color-text-secondary);
     line-height: 1.6;
     font-size: vars.$font-size-sm;
+    padding-right: vars.$space-6;
+    animation: fadeIn 0.4s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

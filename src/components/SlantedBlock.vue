@@ -42,20 +42,21 @@ const overlayStyle = computed(() => {
   if (props.slantedMask) {
     // Gradient mask logic
     const angle = props.maskAngle
-    
+
     // Use color-mix to create a transparent version of the mask color
     // This ensures the gradient fades to transparent of the SAME color (avoiding gray/blackish fade)
     const startColor = props.maskColor
-    const endColor = `color-mix(in srgb, ${startColor}, transparent)`
-    
+    // Create a fully transparent version of the start color
+    const endColor = `color-mix(in srgb, ${startColor}, transparent 100%)`
+
     return {
-        background: `linear-gradient(${angle}, ${startColor} 30%, ${endColor} 70%)`,
-        position: 'absolute' as const,
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        zIndex: 1,
+      background: `linear-gradient(${angle}, ${startColor} 20%, ${endColor} 80%)`,
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      zIndex: 1,
     }
   }
 
@@ -73,12 +74,8 @@ const overlayStyle = computed(() => {
 
 <template>
   <div class="slanted-block" :style="style">
-    <div
-      v-if="image"
-      class="slanted-block__bg-image"
-      :style="{ backgroundImage: `url(${image})` }"
-    ></div>
-    <div v-if="overlayColor" class="slanted-block__overlay" :style="overlayStyle"></div>
+    <div v-if="image" class="slanted-block__bg-image" :style="{ backgroundImage: `url(${image})` }"></div>
+    <div v-if="overlayColor || slantedMask" class="slanted-block__overlay" :style="overlayStyle"></div>
     <div class="slanted-block__content">
       <slot></slot>
     </div>
