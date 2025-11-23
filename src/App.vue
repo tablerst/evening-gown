@@ -12,6 +12,16 @@ type HoverBinding = {
     leave: () => void
 }
 
+type NetworkInformationLike = {
+    effectiveType?: string
+    addEventListener?: (type: string, listener: () => void) => void
+    removeEventListener?: (type: string, listener: () => void) => void
+}
+
+type NavigatorWithConnection = Navigator & {
+    connection?: NetworkInformationLike
+}
+
 let moveHandler: ((event: MouseEvent) => void) | null = null
 const hoverBindings: HoverBinding[] = []
 let ctx: gsap.Context | null = null
@@ -21,6 +31,7 @@ let cursorOutlineRef: HTMLElement | null = null
 const silkContainer = ref<HTMLDivElement | null>(null)
 const isNavCompacted = ref(false)
 const isReducedMotion = ref(false)
+const shouldUseStaticSilk = ref(false)
 
 type RibbonRuntimeConfig = {
     segments: number
@@ -45,6 +56,8 @@ let time = 0
 let scrollHandler: (() => void) | null = null
 let motionQuery: MediaQueryList | null = null
 let motionChangeHandler: ((event: MediaQueryListEvent) => void) | null = null
+let networkInfo: NetworkInformationLike | null = null
+let networkChangeHandler: (() => void) | null = null
 
 const targetConfig: Omit<RibbonRuntimeConfig, 'segments' | 'width' | 'length'> = {
     speed: 0.4,
@@ -57,13 +70,48 @@ const targetConfig: Omit<RibbonRuntimeConfig, 'segments' | 'width' | 'length'> =
 
 const syncMotionPreference = (shouldReduce: boolean) => {
     isReducedMotion.value = shouldReduce
-    if (shouldReduce) {
+    if (shouldReduce || shouldUseStaticSilk.value) {
         disposeSilk()
         return
     }
     nextTick(() => {
         initSilkCanvas()
     })
+}
+
+const supportsWebGL = () => {
+    if (typeof document === 'undefined') {
+        return false
+    }
+    const canvas = document.createElement('canvas')
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+    return Boolean(gl)
+}
+
+const evaluateSilkFallback = () => {
+    if (typeof navigator === 'undefined') {
+        return
+    }
+    const nav = navigator as NavigatorWithConnection
+    const effectiveType = nav.connection?.effectiveType ?? ''
+    const lowPowerCpu = typeof nav.hardwareConcurrency === 'number' && nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 4
+    const slowNetwork = effectiveType === 'slow-2g' || effectiveType === '2g'
+    const lacksWebGL = !supportsWebGL()
+    const shouldFallback = lowPowerCpu || slowNetwork || lacksWebGL
+
+    if (shouldFallback === shouldUseStaticSilk.value) {
+        return
+    }
+
+    shouldUseStaticSilk.value = shouldFallback
+
+    if (shouldFallback) {
+        disposeSilk()
+    } else if (!isReducedMotion.value) {
+        nextTick(() => {
+            initSilkCanvas()
+        })
+    }
 }
 
 const config: RibbonRuntimeConfig = {
@@ -256,7 +304,7 @@ const disposeSilk = () => {
 }
 
 const initSilkCanvas = () => {
-    if (isReducedMotion.value || !silkContainer.value || renderer) {
+    if (isReducedMotion.value || shouldUseStaticSilk.value || !silkContainer.value || renderer) {
         return
     }
 
@@ -450,6 +498,8 @@ onMounted(() => {
         initCursor()
     }
 
+    evaluateSilkFallback()
+
     if (typeof window !== 'undefined' && 'matchMedia' in window) {
         motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
         syncMotionPreference(motionQuery.matches)
@@ -459,6 +509,17 @@ onMounted(() => {
         motionQuery.addEventListener('change', motionChangeHandler)
     } else {
         syncMotionPreference(false)
+    }
+
+    if (typeof navigator !== 'undefined') {
+        const nav = navigator as NavigatorWithConnection
+        networkInfo = nav.connection ?? null
+        if (networkInfo?.addEventListener) {
+            networkChangeHandler = () => {
+                evaluateSilkFallback()
+            }
+            networkInfo.addEventListener('change', networkChangeHandler)
+        }
     }
 
     initAnimations()
@@ -492,6 +553,12 @@ onBeforeUnmount(() => {
         element.removeEventListener('mouseleave', leave)
     })
     hoverBindings.length = 0
+
+    if (networkInfo && networkChangeHandler && networkInfo.removeEventListener) {
+        networkInfo.removeEventListener('change', networkChangeHandler)
+    }
+    networkInfo = null
+    networkChangeHandler = null
 
     document.body.classList.remove('has-custom-cursor')
     if (cursorDotRef) {
@@ -540,70 +607,73 @@ onBeforeUnmount(() => {
                 <div class="hero-backdrop__noise"></div>
             </div>
 
-            <div class="hero-grid relative z-10 grid gap-12 lg:gap-16 px-6 md:px-12 lg:px-24 py-32">
-                <div class="hero-left col-span-12 lg:col-span-5">
-                    <p class="hero-eyebrow hero-sub opacity-0">
-                        THE COLLECTION · <span class="text-accent-gold">THE EMERALD NIGHT</span>
-                    </p>
-                    <h1 class="hero-title" id="hero-title">
-                        <span id="hero-text-1">OBSIDIAN</span>
-                        <span id="hero-text-2">DREAMS</span>
-                    </h1>
-                    <p class="hero-lede text-body-copy">
-                        黑曜石般的背景衬托祖母绿的丝绸流光，
-                        低声讲述 Atelier 手工缝制的仪式感。14 道工序、900 小时，让夜色在你指尖流动。
-                    </p>
-                    <div class="hero-cta flex flex-col sm:flex-row gap-4 mt-12 opacity-0">
-                        <button class="hero-button hero-button--primary nav-link" type="button">
-                            探索系列
-                        </button>
-                        <button class="hero-button hero-button--secondary nav-link" type="button">
-                            预约试穿
-                        </button>
-                    </div>
-                    <div class="hero-pill-group">
-                        <div class="hero-pill">
-                            <span class="hero-pill__label">COUTURE SALON</span>
-                            <span class="hero-pill__value">14 ateliers worldwide</span>
-                        </div>
-                        <div class="hero-pill">
-                            <span class="hero-pill__label">HAND-CRAFTED</span>
-                            <span class="hero-pill__value">900 hours / gown</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="hero-middle col-span-12 lg:col-span-3">
-                    <div class="hero-card">
-                        <p class="hero-card__title">SILK LUMINESCENCE</p>
-                        <p class="hero-card__body">
-                            单条丝绸缓慢呼吸，S 形弧线从右上垂落到左下，
-                            高光保持克制，仿佛剧场灯光在布料上游走。
+            <div class="hero-shell page-shell">
+                <div class="hero-grid relative z-10 grid gap-12 lg:gap-16">
+                    <div class="hero-left col-span-12 lg:col-span-5">
+                        <div class="hero-left__veil" aria-hidden="true"></div>
+                        <p class="hero-eyebrow hero-sub opacity-0">
+                            THE COLLECTION · <span class="text-accent-gold">THE EMERALD NIGHT</span>
                         </p>
-                        <div class="hero-card__meta">
-                            <span>12s breathing cycle</span>
-                            <span>WCAG AA</span>
-                        </div>
-                    </div>
-                    <div class="hero-divider"></div>
-                    <div class="hero-note">
-                        <span class="hero-note__eyebrow">APPOINTMENT</span>
-                        <p>72 小时内专属顾问回复，
-                            <span class="text-accent-gold">定制流程一次完成。</span>
+                        <h1 class="hero-title" id="hero-title">
+                            <span id="hero-text-1">OBSIDIAN</span>
+                            <span id="hero-text-2">DREAMS</span>
+                        </h1>
+                        <p class="hero-lede text-body-copy">
+                            黑曜石般的背景衬托祖母绿的丝绸流光，
+                            低声讲述 Atelier 手工缝制的仪式感。14 道工序、900 小时，让夜色在你指尖流动。
                         </p>
-                    </div>
-                </div>
-
-                <div class="hero-right col-span-12 lg:col-span-4">
-                    <div class="hero-silk-shell" aria-hidden="true">
-                        <div ref="silkContainer" class="hero-silk-canvas"></div>
-                        <div class="hero-silk-fallback" v-if="isReducedMotion">
-                            <div class="hero-silk-fallback__glow"></div>
+                        <div class="hero-cta flex flex-col sm:flex-row gap-4 mt-12 opacity-0">
+                            <button class="hero-button hero-button--primary nav-link" type="button">
+                                探索系列
+                            </button>
+                            <button class="hero-button hero-button--secondary nav-link" type="button">
+                                预约试穿
+                            </button>
+                        </div>
+                        <div class="hero-pill-group">
+                            <div class="hero-pill">
+                                <span class="hero-pill__label">COUTURE SALON</span>
+                                <span class="hero-pill__value">14 ateliers worldwide</span>
+                            </div>
+                            <div class="hero-pill">
+                                <span class="hero-pill__label">HAND-CRAFTED</span>
+                                <span class="hero-pill__value">900 hours / gown</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="hero-right__caption">
-                        <span>VOL. II · EMERALD NIGHT</span>
-                        <span>Scroll</span>
+
+                    <div class="hero-middle col-span-12 lg:col-span-3">
+                        <div class="hero-card">
+                            <p class="hero-card__title">SILK LUMINESCENCE</p>
+                            <p class="hero-card__body">
+                                单条丝绸缓慢呼吸，S 形弧线从右上垂落到左下，
+                                高光保持克制，仿佛剧场灯光在布料上游走。
+                            </p>
+                            <div class="hero-card__meta">
+                                <span>12s breathing cycle</span>
+                                <span>WCAG AA</span>
+                            </div>
+                        </div>
+                        <div class="hero-divider"></div>
+                        <div class="hero-note">
+                            <span class="hero-note__eyebrow">APPOINTMENT</span>
+                            <p>72 小时内专属顾问回复，
+                                <span class="text-accent-gold">定制流程一次完成。</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="hero-right col-span-12 lg:col-span-4">
+                        <div class="hero-silk-shell" aria-hidden="true">
+                            <div ref="silkContainer" class="hero-silk-canvas"></div>
+                            <div class="hero-silk-fallback" v-if="isReducedMotion || shouldUseStaticSilk">
+                                <div class="hero-silk-fallback__glow"></div>
+                            </div>
+                        </div>
+                        <div class="hero-right__caption">
+                            <span>VOL. II · EMERALD NIGHT</span>
+                            <span>Scroll</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -611,154 +681,160 @@ onBeforeUnmount(() => {
 
         <main class="bg-obsidian">
             <section id="featured" class="section-block">
-                <div class="section-heading">
-                    <div class="section-heading__line"></div>
-                    <div>
-                        <p class="eyebrow">FEATURED COLLECTION</p>
-                        <h2>精选系列 · Emerald Reverie</h2>
+                <div class="page-shell">
+                    <div class="section-heading">
+                        <div class="section-heading__line"></div>
+                        <div>
+                            <p class="eyebrow">FEATURED COLLECTION</p>
+                            <h2>精选系列 · Emerald Reverie</h2>
+                        </div>
+                        <p class="section-heading__lede">
+                            12 列栅格下的丝绒留白，让礼服成为空间主角。
+                            每张卡片都以 3:4 比例呈现裙摆垂坠感。
+                        </p>
                     </div>
-                    <p class="section-heading__lede">
-                        12 列栅格下的丝绒留白，让礼服成为空间主角。
-                        每张卡片都以 3:4 比例呈现裙摆垂坠感。
-                    </p>
-                </div>
 
-                <div class="collection-grid">
-                    <article class="collection-card project-item">
-                        <div class="collection-card__media">
-                            <img src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=1983&auto=format&fit=crop"
-                                alt="Moonlit Velvet" loading="lazy" />
-                        </div>
-                        <div class="collection-card__content">
-                            <h3>Moonlit Velvet</h3>
-                            <p>Silver Thread Atelier · 900 Hours</p>
-                        </div>
-                    </article>
-
-                    <article class="collection-card project-item">
-                        <div class="collection-card__media">
-                            <img src="https://images.unsplash.com/photo-1566174053879-31528523f8ae?q=80&w=1983&auto=format&fit=crop"
-                                alt="Nebula Gown" loading="lazy" />
-                        </div>
-                        <div class="collection-card__content">
-                            <h3>Nebula Gown</h3>
-                            <p>Deep Purple Chiffon · Atelier 04</p>
-                        </div>
-                    </article>
-
-                    <article class="collection-card collection-card--highlight project-item">
-                        <div class="collection-card__media">
-                            <img src="https://images.unsplash.com/photo-1539008835657-9e8e9680c956?q=80&w=1887&auto=format&fit=crop"
-                                alt="Ethereal" loading="lazy" />
-                            <div class="collection-card__overlay">
-                                <span class="eyebrow">ETHEREAL</span>
+                    <div class="collection-grid">
+                        <article class="collection-card project-item">
+                            <div class="collection-card__media">
+                                <img src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=1983&auto=format&fit=crop"
+                                    alt="Moonlit Velvet" loading="lazy" />
                             </div>
-                        </div>
-                        <div class="collection-card__content">
-                            <h3>The Royal Silhouette</h3>
-                            <p>Obsidian Tulle · Limited 12</p>
-                            <button class="tag-chip nav-link" type="button">INQUIRE</button>
-                        </div>
-                    </article>
+                            <div class="collection-card__content">
+                                <h3>Moonlit Velvet</h3>
+                                <p>Silver Thread Atelier · 900 Hours</p>
+                            </div>
+                        </article>
+
+                        <article class="collection-card project-item">
+                            <div class="collection-card__media">
+                                <img src="https://images.unsplash.com/photo-1566174053879-31528523f8ae?q=80&w=1983&auto=format&fit=crop"
+                                    alt="Nebula Gown" loading="lazy" />
+                            </div>
+                            <div class="collection-card__content">
+                                <h3>Nebula Gown</h3>
+                                <p>Deep Purple Chiffon · Atelier 04</p>
+                            </div>
+                        </article>
+
+                        <article class="collection-card collection-card--highlight project-item">
+                            <div class="collection-card__media">
+                                <img src="https://images.unsplash.com/photo-1539008835657-9e8e9680c956?q=80&w=1887&auto=format&fit=crop"
+                                    alt="Ethereal" loading="lazy" />
+                                <div class="collection-card__overlay">
+                                    <span class="eyebrow">ETHEREAL</span>
+                                </div>
+                            </div>
+                            <div class="collection-card__content">
+                                <h3>The Royal Silhouette</h3>
+                                <p>Obsidian Tulle · Limited 12</p>
+                                <button class="tag-chip nav-link" type="button">INQUIRE</button>
+                            </div>
+                        </article>
+                    </div>
                 </div>
             </section>
 
             <section id="best" class="section-block section-block--dense">
-                <div class="section-heading section-heading--compact">
-                    <p class="eyebrow">BEST SELLERS</p>
-                    <h2>热门单品 · Best Sellers</h2>
-                </div>
-                <div class="best-grid">
-                    <article class="best-card">
-                        <div class="best-card__media">
-                            <img src="https://images.unsplash.com/photo-1514996937319-344454492b37?q=80&w=900&auto=format&fit=crop"
-                                alt="Asteria" loading="lazy" />
-                        </div>
-                        <div class="best-card__body">
-                            <div>
-                                <h3>Asteria Veil</h3>
-                                <p>Hand-beaded constellation lace</p>
+                <div class="page-shell">
+                    <div class="section-heading section-heading--compact">
+                        <p class="eyebrow">BEST SELLERS</p>
+                        <h2>热门单品 · Best Sellers</h2>
+                    </div>
+                    <div class="best-grid">
+                        <article class="best-card">
+                            <div class="best-card__media">
+                                <img src="https://images.unsplash.com/photo-1514996937319-344454492b37?q=80&w=900&auto=format&fit=crop"
+                                    alt="Asteria" loading="lazy" />
                             </div>
-                            <div class="best-card__footer">
-                                <span class="price">¥ 128,000</span>
-                                <button class="hero-button hero-button--ghost nav-link" type="button">加入心愿单</button>
+                            <div class="best-card__body">
+                                <div>
+                                    <h3>Asteria Veil</h3>
+                                    <p>Hand-beaded constellation lace</p>
+                                </div>
+                                <div class="best-card__footer">
+                                    <span class="price">¥ 128,000</span>
+                                    <button class="hero-button hero-button--ghost nav-link" type="button">加入心愿单</button>
+                                </div>
                             </div>
-                        </div>
-                    </article>
+                        </article>
 
-                    <article class="best-card">
-                        <div class="best-card__media">
-                            <img src="https://images.unsplash.com/photo-1475180098004-ca77a66827be?q=80&w=900&auto=format&fit=crop"
-                                alt="Seraphine" loading="lazy" />
-                        </div>
-                        <div class="best-card__body">
-                            <div>
-                                <h3>Seraphine Column</h3>
-                                <p>Bias-cut satin · Atelier Milano</p>
+                        <article class="best-card">
+                            <div class="best-card__media">
+                                <img src="https://images.unsplash.com/photo-1475180098004-ca77a66827be?q=80&w=900&auto=format&fit=crop"
+                                    alt="Seraphine" loading="lazy" />
                             </div>
-                            <div class="best-card__footer">
-                                <span class="price">¥ 96,000</span>
-                                <button class="hero-button hero-button--ghost nav-link" type="button">预约试穿</button>
+                            <div class="best-card__body">
+                                <div>
+                                    <h3>Seraphine Column</h3>
+                                    <p>Bias-cut satin · Atelier Milano</p>
+                                </div>
+                                <div class="best-card__footer">
+                                    <span class="price">¥ 96,000</span>
+                                    <button class="hero-button hero-button--ghost nav-link" type="button">预约试穿</button>
+                                </div>
                             </div>
-                        </div>
-                    </article>
+                        </article>
 
-                    <article class="best-card">
-                        <div class="best-card__media">
-                            <img src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=900&auto=format&fit=crop"
-                                alt="Nocturne" loading="lazy" />
-                        </div>
-                        <div class="best-card__body">
-                            <div>
-                                <h3>Nocturne Cape</h3>
-                                <p>Velvet gradient · Detachable cape</p>
+                        <article class="best-card">
+                            <div class="best-card__media">
+                                <img src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=900&auto=format&fit=crop"
+                                    alt="Nocturne" loading="lazy" />
                             </div>
-                            <div class="best-card__footer">
-                                <span class="price">¥ 138,000</span>
-                                <button class="hero-button hero-button--ghost nav-link" type="button">查看细节</button>
+                            <div class="best-card__body">
+                                <div>
+                                    <h3>Nocturne Cape</h3>
+                                    <p>Velvet gradient · Detachable cape</p>
+                                </div>
+                                <div class="best-card__footer">
+                                    <span class="price">¥ 138,000</span>
+                                    <button class="hero-button hero-button--ghost nav-link" type="button">查看细节</button>
+                                </div>
                             </div>
-                        </div>
-                    </article>
+                        </article>
+                    </div>
                 </div>
             </section>
 
             <section id="couture" class="section-block section-couture">
-                <div class="section-heading">
-                    <div class="section-heading__line"></div>
-                    <div>
-                        <p class="eyebrow">COUTURE & CUSTOM</p>
-                        <h2>定制服务 · Couture & Custom</h2>
+                <div class="page-shell">
+                    <div class="section-heading">
+                        <div class="section-heading__line"></div>
+                        <div>
+                            <p class="eyebrow">COUTURE & CUSTOM</p>
+                            <h2>定制服务 · Couture & Custom</h2>
+                        </div>
                     </div>
-                </div>
-                <div class="couture-grid">
-                    <div class="couture-text">
-                        <p>
-                            Atelier 团队根据体温、肤色与出席场合定制配色，
-                            每次量体都在玻璃拟态的静谧空间完成。
-                        </p>
-                        <ul>
-                            <li>一对一造型顾问 · 线下 / 远程</li>
-                            <li>丝绒面料触感档案 &amp; 香氛礼包</li>
-                            <li>72 小时出具草图，14 天完成初版试衣</li>
-                        </ul>
-                    </div>
-                    <div class="couture-panel" id="contact">
-                        <div class="couture-panel__badge">By Appointment Only</div>
-                        <h3>预约专属试穿</h3>
-                        <p>留下你的城市与日期，我们将安排最近的 Emerald Night Salon。</p>
-                        <form class="couture-form" aria-label="预约试穿">
-                            <label>
-                                <span>城市</span>
-                                <input type="text" name="city" placeholder="Shanghai / Paris" />
-                            </label>
-                            <label>
-                                <span>日期</span>
-                                <input type="date" name="date" />
-                            </label>
-                            <button class="hero-button hero-button--primary w-full nav-link" type="button">
-                                提交预约
-                            </button>
-                        </form>
+                    <div class="couture-grid">
+                        <div class="couture-text">
+                            <p>
+                                Atelier 团队根据体温、肤色与出席场合定制配色，
+                                每次量体都在玻璃拟态的静谧空间完成。
+                            </p>
+                            <ul>
+                                <li>一对一造型顾问 · 线下 / 远程</li>
+                                <li>丝绒面料触感档案 &amp; 香氛礼包</li>
+                                <li>72 小时出具草图，14 天完成初版试衣</li>
+                            </ul>
+                        </div>
+                        <div class="couture-panel" id="contact">
+                            <div class="couture-panel__badge">By Appointment Only</div>
+                            <h3>预约专属试穿</h3>
+                            <p>留下你的城市与日期，我们将安排最近的 Emerald Night Salon。</p>
+                            <form class="couture-form" aria-label="预约试穿">
+                                <label>
+                                    <span>城市</span>
+                                    <input type="text" name="city" placeholder="Shanghai / Paris" />
+                                </label>
+                                <label>
+                                    <span>日期</span>
+                                    <input type="date" name="date" />
+                                </label>
+                                <button class="hero-button hero-button--primary w-full nav-link" type="button">
+                                    提交预约
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </section>
