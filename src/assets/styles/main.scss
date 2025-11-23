@@ -1,7 +1,0 @@
-@use 'abstracts/variables';
-@use 'abstracts/mixins';
-@use 'base/reset';
-@use 'base/typography';
-
-// 这里可以引入组件样式，或者在 Vue 组件中直接使用
-@use 'components/buttons';

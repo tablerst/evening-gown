@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini 情绪丝绸 - 高级感流光版</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #020205; /* 极深邃的蓝黑色背景 */
+            font-family: 'Segoe UI', sans-serif;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255,255,255,0.5);
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        
+        /* AI 控制面板样式 */
+        #ai-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            background: rgba(10, 10, 15, 0.6);
+            backdrop-filter: blur(12px); /* 加强毛玻璃 */
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #fff;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            transition: transform 0.3s ease;
+        }
+
+        h2 {
+            margin: 0 0 15px 0;
+            font-size: 14px;
+            font-weight: 400;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 60px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #ccc;
+            padding: 10px;
+            box-sizing: border-box;
+            font-family: inherit;
+            resize: none;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+            font-size: 13px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #ffffff;
+            color: #fff;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: rgba(255,255,255,0.8);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+        
+        button:disabled {
+            background: #222;
+            cursor: not-allowed;
+            color: #555;
+        }
+
+        #ai-response {
+            margin-top: 20px;
+            font-size: 13px;
+            line-height: 1.8;
+            color: #aaa;
+            font-family: 'Times New Roman', serif; /* 衬线体增加高级感 */
+            font-style: italic;
+            border-left: 1px solid rgba(255,255,255,0.2);
+            padding-left: 12px;
+            min-height: 20px;
+            opacity: 0;
+            transition: opacity 1s;
+        }
+
+        .spinner {
+            width: 12px;
+            height: 12px;
+            border: 1px solid #ffffff;
+            border-top: 1px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Initialization...</div>
+    
+    <!-- AI 控制面板 -->
+    <div id="ai-panel">
+        <h2>Mood Weaver</h2>
+        <textarea id="mood-input" placeholder="输入意境...&#10;如：'银河倾泻' 或 '深海幽蓝'"></textarea>
+        <button id="generate-btn" onclick="generateRibbon()">
+            <div class="spinner" id="btn-spinner"></div>
+            <span id="btn-text">GENERATE</span>
+        </button>
+        <div id="ai-response"></div>
+    </div>
+    
+    <!-- 引入 Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- Gemini API 配置 ---
+        const apiKey = ""; 
+
+        async function callGemini(prompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const systemPrompt = `
+            You are a visual generative artist creating high-end, abstract silk visualizations. Translate user inputs into render parameters.
+            
+            Return JSON only:
+            1. "params": Numerical/Color values.
+            2. "poetic_desc": A short, elegant Chinese sentence describing the visual.
+
+            Params:
+            - baseColor: Hex (e.g., "#000510"). The deep base color of the silk.
+            - glowColor: Hex (e.g., "#00ffff"). The color of the flowing light highlights.
+            - speed: Float 0.2 (slow/elegant) to 2.0 (fast).
+            - twistSpeed: Float 0.1 to 1.5.
+            - twistAmplitude: Float 0.5 to 2.5.
+            - flowFrequency: Float 0.5 to 3.0 (density of light waves).
+
+            Example:
+            {
+                "params": {
+                    "baseColor": "#050010",
+                    "glowColor": "#ff0055",
+                    "speed": 0.8,
+                    "twistSpeed": 0.3,
+                    "twistAmplitude": 1.2,
+                    "flowFrequency": 1.5
+                },
+                "poetic_desc": "暗夜中流淌的绯红星河，静谧而炽热。"
+            }
+            `;
+
+            const payload = {
+                contents: [{ parts: [{ text: `User input: "${prompt}"` }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: { responseMimeType: "application/json" }
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                
+                const data = await response.json();
+                return JSON.parse(data.candidates[0].content.parts[0].text);
+            } catch (error) {
+                console.error("Gemini API Failed:", error);
+                return null;
+            }
+        }
+
+        // --- 3D 引擎逻辑 ---
+        
+        let scene, camera, renderer;
+        let ribbonMesh, material;
+        let time = 0;
+        
+        // 目标配置
+        let targetConfig = {
+            speed: 0.6,
+            twistSpeed: 0.2,
+            twistAmplitude: 1.0,
+            flowFrequency: 1.0,
+            baseColor: new THREE.Color(0x020205),
+            glowColor: new THREE.Color(0x00ccff)
+        };
+
+        // 当前配置
+        const config = {
+            segments: 400, // 增加分段数以获得更细腻的光效
+            width: 4,
+            length: 25,
+            speed: 0.6,
+            twistSpeed: 0.2,
+            twistAmplitude: 1.0,
+            flowFrequency: 1.0,
+            baseColor: new THREE.Color(0x020205),
+            glowColor: new THREE.Color(0x00ccff)
+        };
+
+        window.onload = function() {
+            document.getElementById('loading').style.display = 'none';
+            init();
+        };
+
+        function init() {
+            scene = new THREE.Scene();
+            // 使用非常深的雾气，让丝绸两端逐渐消失在黑暗中
+            scene.fog = new THREE.FogExp2(0x020205, 0.04);
+
+            camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            // 2. 视角设置：
+            // 将相机放在一个斜侧方的位置，同时配合物体旋转，达成30-60度夹角
+            camera.position.set(0, 0, 20); 
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            // 使用 ACESFilmic 色调映射增加电影质感，且稍微调高曝光
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            document.body.appendChild(renderer.domElement);
+
+            // 材质 - 关键修改
+            // 启用 vertexColors，这样我们可以逐个顶点控制颜色（实现自发光流光）
+            material = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,        // 设为白，让 vertexColor 决定最终色
+                vertexColors: true,     // 开启顶点颜色
+                emissive: 0x000000,     // 基础自发光为黑，我们通过 vertexColor 模拟亮部
+                metalness: 0.6,         // 提高金属感，增加高级反光
+                roughness: 0.2,         // 丝绸般的光滑
+                clearcoat: 1.0,         // 清漆层
+                clearcoatRoughness: 0.1,
+                side: THREE.DoubleSide,
+                flatShading: false
+            });
+
+            // 几何体
+            const geometry = new THREE.PlaneGeometry(config.length, config.width, config.segments, 2);
+            
+            // 初始化颜色属性
+            const count = geometry.attributes.position.count;
+            geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+
+            ribbonMesh = new THREE.Mesh(geometry, material);
+            
+            // 1. 角度调整：右上到左下 (45度)
+            // Z轴旋转 45度 (Math.PI / 4) 会让原本水平的丝带变成 左下->右上
+            // 为了变成 右上->左下，我们可以旋转 -45度 (-Math.PI / 4) 或者 135度
+            // 这里我们旋转 Z 轴 -45 度，并适当调整 X/Y 轴让它看起来更有体积感
+            ribbonMesh.rotation.z = Math.PI / 4; 
+            ribbonMesh.rotation.x = Math.PI / 8; // 微微前倾，增加立体感
+
+            scene.add(ribbonMesh);
+
+            // 灯光系统 - 简化外部灯光，强调自发光，只保留轮廓光
+            const ambientLight = new THREE.AmbientLight(0x222222, 1); 
+            scene.add(ambientLight);
+
+            // 顶部轮廓光
+            const rimLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            rimLight.position.set(0, 10, -5);
+            scene.add(rimLight);
+
+            window.addEventListener('resize', onWindowResize, false);
+            animate();
+        }
+
+        async function generateRibbon() {
+            const input = document.getElementById('mood-input').value;
+            if (!input.trim()) return;
+
+            const btn = document.getElementById('generate-btn');
+            const spinner = document.getElementById('btn-spinner');
+            const btnText = document.getElementById('btn-text');
+            const responseDiv = document.getElementById('ai-response');
+            
+            btn.disabled = true;
+            spinner.style.display = 'block';
+            btnText.innerText = "WEAVING";
+            responseDiv.style.opacity = 0;
+
+            const result = await callGemini(input);
+
+            if (result) {
+                applyAIParams(result.params);
+                responseDiv.innerText = result.poetic_desc;
+                responseDiv.style.opacity = 1;
+            }
+
+            btn.disabled = false;
+            spinner.style.display = 'none';
+            btnText.innerText = "GENERATE";
+        }
+
+        function applyAIParams(params) {
+            targetConfig.baseColor = new THREE.Color(params.baseColor);
+            targetConfig.glowColor = new THREE.Color(params.glowColor);
+            targetConfig.speed = params.speed;
+            targetConfig.twistSpeed = params.twistSpeed;
+            targetConfig.twistAmplitude = params.twistAmplitude;
+            targetConfig.flowFrequency = params.flowFrequency;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 缓动插值
+            config.speed += (targetConfig.speed - config.speed) * 0.05;
+            config.twistSpeed += (targetConfig.twistSpeed - config.twistSpeed) * 0.05;
+            config.twistAmplitude += (targetConfig.twistAmplitude - config.twistAmplitude) * 0.05;
+            config.flowFrequency += (targetConfig.flowFrequency - config.flowFrequency) * 0.05;
+            
+            // 颜色插值
+            config.baseColor.lerp(targetConfig.baseColor, 0.05);
+            config.glowColor.lerp(targetConfig.glowColor, 0.05);
+
+            time += 0.01 * config.speed;
+
+            updateRibbon();
+            renderer.render(scene, camera);
+        }
+
+        function updateRibbon() {
+            const positions = ribbonMesh.geometry.attributes.position;
+            const colors = ribbonMesh.geometry.attributes.color; // 获取颜色 buffer
+            
+            const widthSegments = config.segments;
+            const verticesPerRow = widthSegments + 1;
+            
+            // 颜色复用变量
+            const baseR = config.baseColor.r;
+            const baseG = config.baseColor.g;
+            const baseB = config.baseColor.b;
+            
+            const glowR = config.glowColor.r;
+            const glowG = config.glowColor.g;
+            const glowB = config.glowColor.b;
+
+            for (let col = 0; col < verticesPerRow; col++) {
+                // 计算当前段在丝带长度上的比例 (0.0 ~ 1.0)
+                const ratio = col / widthSegments;
+                const x = ratio * config.length - (config.length / 2);
+                
+                // 1. 物理形态计算
+                // 主波浪
+                let waveZ = Math.sin(x * 0.4 + time) * 1.2;
+                // 细节波浪
+                waveZ += Math.sin(x * 1.5 + time * 1.5) * 0.3;
+
+                const centerY = Math.sin(x * 0.2 + time * 0.5) * 0.8;
+                const twist = Math.sin(x * 0.3 + time * config.twistSpeed) * config.twistAmplitude; 
+
+                const idxTop = col; 
+                const idxBot = col + verticesPerRow;
+                const halfWidth = config.width / 2;
+                
+                // 旋转变换 (X轴不变，变换Y/Z)
+                const topY = centerY + halfWidth * Math.cos(twist);
+                const topZ = waveZ + halfWidth * Math.sin(twist);
+                
+                const botY = centerY + (-halfWidth) * Math.cos(twist);
+                const botZ = waveZ + (-halfWidth) * Math.sin(twist);
+                
+                positions.setY(idxTop, topY);
+                positions.setZ(idxTop, topZ);
+                positions.setY(idxBot, botY);
+                positions.setZ(idxBot, botZ);
+
+                // 2. 自发光流光计算 (The "Flowing Glow")
+                // 我们计算一个 "Glow Factor"，它基于正弦波在丝带上移动
+                // 使用 pow() 函数让光带变得锐利，不那么模糊
+                const flowPhase = ratio * 5 * config.flowFrequency - time * 2;
+                let glowFactor = Math.sin(flowPhase); 
+                glowFactor = Math.pow((glowFactor + 1) / 2, 8); // 8次方让光带非常聚拢，像激光扫过
+
+                // 另外加上基于扭曲的高光 (Curvature Highlight)
+                // 当丝带扭曲时，边缘更亮
+                const twistHighlight = Math.abs(Math.sin(twist));
+                
+                // 最终混合比例
+                const mixRatio = Math.min(glowFactor * 1.5 + twistHighlight * 0.2, 1.0);
+
+                // 混合颜色: Base -> Glow
+                const r = baseR + (glowR - baseR) * mixRatio;
+                const g = baseG + (glowG - baseG) * mixRatio;
+                const b = baseB + (glowB - baseB) * mixRatio;
+
+                // 设置颜色 (上顶点和下顶点共用一个色，或者也可以做渐变)
+                colors.setXYZ(idxTop, r, g, b);
+                colors.setXYZ(idxBot, r, g, b);
+            }
+
+            positions.needsUpdate = true;
+            colors.needsUpdate = true;
+            ribbonMesh.geometry.computeVertexNormals();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
