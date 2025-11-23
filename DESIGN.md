@@ -76,52 +76,46 @@
 **区域设定**
 
 - 高度：`h-screen`，占满首屏视窗。  
-- 水平与垂直居中：`flex items-center justify-center`。  
+- 布局：左侧不对称布局，视觉重心偏左，右侧留给动态丝绸流动。
 - 背景层更新为「动态丝绸引擎」：
 
   1. **WebGL 动态丝绸**（`#silk-canvas`）  
     - 使用 Three.js 渲染 400 段的丝绸平面，持续扭转与流淌。  
-    - 基础色 `baseColor` 取自 `--void-black` 的蓝黑调，光晕 `glowColor` 在 `--royal-purple` 与寒冷青蓝之间缓慢过渡，符合 Noir Luminescence 主题。  
-    - 添加 Exponential Fog 与 ACES Filmic tone mapping，确保丝绸远端融入黑幕。
+    - 基础色 `baseColor` 调整为微亮的午夜蓝 (`0x151520`)，光晕 `glowColor` 为深邃紫 (`0x5533cc`)。
+    - 灯光系统升级：
+      - 环境光：冷调月光 (`0x8899ff`)，强度提升，模拟月夜下的自然反光。
+      - 主光源：强力轮廓光，增强丝绸的金属质感与褶皱细节。
+      - 补光：底部紫色补光，丰富暗部层次。
+    - 几何形态：调整旋转角度 (`Math.PI / 3`)，呈现对角线流淌感，更具动势。
 
   2. **渐变遮罩层**  
-    - 左侧偏午夜蓝 (`midnight-blue`)，右侧偏皇家紫 (`royal-purple`)，中间加黑色过渡，形成冷调光影。  
-    - 顶部另加自上而下的黑色渐变，使导航区域更加清晰。
-
-  3. **AI Mood Weaver 面板**  
-    - 右上角悬浮毛玻璃面板（宽 280-320px），半透明深灰背景 + 细描边。  
-    - 包含简约标题、情绪输入文本域、`GENERATE` 按钮以及来自 Gemini 的诗性描述。  
-    - 按钮在调用时显示微型 spinner 与 `WEAVING` 文字，成功后在 `ai-response` 区淡入描述。
+    - 极淡的透明遮罩，仅在边缘做轻微压暗，最大程度保留丝绸的通透感与亮度。
 
 **内容布局**
 
-- 垂直结构（自上而下）：
-  1. 副标题：`The 2025 Midnight Series`
-  2. 主标题：`OBSIDIAN / DREAMS`
-  3. 向下引导 CTA：竖线 + 文案 `DISCOVER THE ESSENCE`
-
-- 水平结构：
-  - 文案区仍居中，但需与右上角的 AI 面板保持 24px 以上安全距；在超宽屏上可将标题组整体向左偏移 5vw，露出更多丝绸动态。
+- 容器：`flex flex-col justify-center`，内容块左对齐，整体向左偏移 (`ml-[10%]`)。
+- 垂直结构：
+  1. 副标题：`The 2025 Midnight Series`，左对齐。
+  2. 主标题：`OBSIDIAN / DREAMS`，错位排版。
+  3. 向下引导 CTA：横线 + 文案 `DISCOVER THE ESSENCE`，位于标题下方。
 
 **文字样式**
 
 - 副标题：
   - 字体：`Playfair Display` 斜体。
-  - 颜色：`text-hero-sub`（较亮的冷银）。
-  - 字距：`tracking-widest`，显得轻盈而高雅。  
-  - 数字年份 `2025` 使用金色强调。
+  - 颜色：`text-hero-sub`。
+  - 字距：`tracking-widest`。
 
 - 主标题（两行）：
   - `.skew-title` 样式：  
-    - 大号字号（桌面端可达 `8xl–9xl`）。  
-    - `skewX(-15deg)` 形成斜切效果。  
-    - 复杂竖向渐变（白 → 银 → 淡蓝紫 → 皇家紫 → 透明黑），并做 `background-clip: text` 填充。  
-    - 带有冷蓝外发光 `drop-shadow`，营造霓虹金属字效果。
-  - 行间距：紧凑（`line-height: 0.9`），增强整体性。
+    - 极大字号（`text-[10rem]`）。  
+    - `skewX(-15deg)`。  
+    - **错位布局**：第一行 `OBSIDIAN` 居左，第二行 `DREAMS` 大幅缩进 (`ml-48`)，形成阶梯感。
+    - 材质感：银白渐变填充 + 冷蓝外发光。
 
 - CTA 区域：
-  - 一条竖直金色渐变细线（`h-16 w-[1px]`），下方放置小写字间距很大的说明文本。  
-  - 文案采用 `.eyebrow` 样式：极小字号 + 超大字距，颜色为 `text-muted`，hover 变白。
+  - 改为横向布局：左侧金色渐变横线 (`w-16 h-[1px]`) + 右侧文案。
+  - 增加与标题的连贯性。
 
 **角落信息**
 

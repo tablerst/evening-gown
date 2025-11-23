@@ -19,18 +19,6 @@ let cursorDotRef: HTMLElement | null = null
 let cursorOutlineRef: HTMLElement | null = null
 
 const silkContainer = ref<HTMLDivElement | null>(null)
-const moodInput = ref('')
-const aiResponse = ref('')
-const isWeaving = ref(false)
-
-type RibbonParams = {
-    baseColor: string
-    glowColor: string
-    speed: number
-    twistSpeed: number
-    twistAmplitude: number
-    flowFrequency: number
-}
 
 type RibbonRuntimeConfig = {
     segments: number
@@ -44,11 +32,6 @@ type RibbonRuntimeConfig = {
     glowColor: THREE.Color
 }
 
-type GeminiResult = {
-    params: RibbonParams
-    poetic_desc: string
-}
-
 let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
 let renderer: THREE.WebGLRenderer | null = null
@@ -59,29 +42,25 @@ let resizeHandler: (() => void) | null = null
 let time = 0
 
 const targetConfig: Omit<RibbonRuntimeConfig, 'segments' | 'width' | 'length'> = {
-    speed: 0.6,
-    twistSpeed: 0.2,
-    twistAmplitude: 1,
-    flowFrequency: 1,
-    baseColor: new THREE.Color(0x030305),
-    glowColor: new THREE.Color(0x4b0082),
+    speed: 0.4,
+    twistSpeed: 0.1,
+    twistAmplitude: 1.5,
+    flowFrequency: 0.8,
+    baseColor: new THREE.Color(0x151520),
+    glowColor: new THREE.Color(0x5533cc),
 }
 
 const config: RibbonRuntimeConfig = {
     segments: 400,
-    width: 4,
-    length: 25,
-    speed: 0.6,
-    twistSpeed: 0.2,
-    twistAmplitude: 1,
-    flowFrequency: 1,
-    baseColor: new THREE.Color(0x030305),
-    glowColor: new THREE.Color(0x4b0082),
+    width: 5,
+    length: 30,
+    speed: 0.4,
+    twistSpeed: 0.1,
+    twistAmplitude: 1.5,
+    flowFrequency: 0.8,
+    baseColor: new THREE.Color(0x151520),
+    glowColor: new THREE.Color(0x5533cc),
 }
-
-const GEMINI_API_URL =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent'
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
 const initCursor = () => {
     cursorDotRef = document.querySelector('.cursor-dot') as HTMLElement | null
@@ -134,70 +113,6 @@ const initCursor = () => {
 
         hoverBindings.push({ element, enter: onEnter, leave: onLeave })
     })
-}
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
-
-const fallbackPresets: [GeminiResult, ...GeminiResult[]] = [
-    {
-        params: {
-            baseColor: '#030308',
-            glowColor: '#3f8cff',
-            speed: 0.7,
-            twistSpeed: 0.35,
-            twistAmplitude: 1.1,
-            flowFrequency: 1.3,
-        },
-        poetic_desc: '寒蓝光线在黑幕上折返，似深夜霓虹轻抚暗绸。',
-    },
-    {
-        params: {
-            baseColor: '#04010a',
-            glowColor: '#a855f7',
-            speed: 0.5,
-            twistSpeed: 0.22,
-            twistAmplitude: 1.4,
-            flowFrequency: 0.9,
-        },
-        poetic_desc: '暮紫缠绕的丝束缓慢舒展，若舞台帷幕悄然苏醒。',
-    },
-    {
-        params: {
-            baseColor: '#050c12',
-            glowColor: '#4de4c9',
-            speed: 1.1,
-            twistSpeed: 0.6,
-            twistAmplitude: 1.8,
-            flowFrequency: 2,
-        },
-        poetic_desc: '深海色的涟漪被青绿电光点亮，倏忽如星河。',
-    },
-]
-
-const getFallbackResponse = (prompt: string): GeminiResult => {
-    if (!prompt) {
-        return fallbackPresets[0]
-    }
-    const index = Math.abs(prompt.length) % fallbackPresets.length
-    return fallbackPresets[index]!
-}
-
-const applyAIParams = (params: RibbonParams) => {
-    try {
-        if (params.baseColor) {
-            targetConfig.baseColor = new THREE.Color(params.baseColor)
-        }
-        if (params.glowColor) {
-            targetConfig.glowColor = new THREE.Color(params.glowColor)
-        }
-    } catch (error) {
-        console.warn('Invalid color from parameters', error)
-    }
-
-    targetConfig.speed = clamp(params.speed ?? targetConfig.speed, 0.2, 2)
-    targetConfig.twistSpeed = clamp(params.twistSpeed ?? targetConfig.twistSpeed, 0.1, 1.5)
-    targetConfig.twistAmplitude = clamp(params.twistAmplitude ?? targetConfig.twistAmplitude, 0.5, 2.5)
-    targetConfig.flowFrequency = clamp(params.flowFrequency ?? targetConfig.flowFrequency, 0.5, 3)
 }
 
 const updateRibbon = () => {
@@ -317,7 +232,7 @@ const initSilkCanvas = () => {
 
     const container = silkContainer.value
     scene = new THREE.Scene()
-    scene.fog = new THREE.FogExp2(0x030305, 0.04)
+    // scene.fog = new THREE.FogExp2(0x030305, 0.04)
 
     const rect = container.getBoundingClientRect()
     const width = rect.width || window.innerWidth
@@ -347,26 +262,34 @@ const initSilkCanvas = () => {
     silkMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         vertexColors: true,
-        emissive: 0x000000,
-        metalness: 0.6,
-        roughness: 0.2,
+        emissive: 0x050510,
+        metalness: 0.8,
+        roughness: 0.3,
         clearcoat: 1,
-        clearcoatRoughness: 0.1,
+        clearcoatRoughness: 0.2,
         side: THREE.DoubleSide,
         flatShading: false,
     })
 
     ribbonMesh = new THREE.Mesh(geometry, silkMaterial)
-    ribbonMesh.rotation.z = Math.PI / 4
-    ribbonMesh.rotation.x = Math.PI / 8
+    ribbonMesh.rotation.z = Math.PI / 3
+    ribbonMesh.rotation.x = Math.PI / 6
+    ribbonMesh.position.x = 2
     scene.add(ribbonMesh)
 
-    const ambientLight = new THREE.AmbientLight(0x222222, 1)
+    // 模拟月光环境
+    const ambientLight = new THREE.AmbientLight(0x8899ff, 1.2)
     scene.add(ambientLight)
 
-    const rimLight = new THREE.DirectionalLight(0xffffff, 1.5)
-    rimLight.position.set(0, 10, -5)
-    scene.add(rimLight)
+    // 主轮廓光
+    const mainLight = new THREE.DirectionalLight(0xffffff, 3)
+    mainLight.position.set(5, 5, 5)
+    scene.add(mainLight)
+
+    // 底部补光，增加层次
+    const fillLight = new THREE.DirectionalLight(0x4b0082, 1.5)
+    fillLight.position.set(-5, -5, 0)
+    scene.add(fillLight)
 
     resizeHandler = () => {
         if (!renderer || !camera || !silkContainer.value) {
@@ -382,77 +305,6 @@ const initSilkCanvas = () => {
 
     window.addEventListener('resize', resizeHandler)
     animateSilk()
-}
-
-const callGemini = async (prompt: string): Promise<GeminiResult | null> => {
-    if (!GEMINI_API_KEY) {
-        console.warn('VITE_GEMINI_API_KEY is missing; using fallback presets.')
-        return getFallbackResponse(prompt)
-    }
-
-    const systemPrompt = `You are a visual generative artist creating high-end, abstract silk visualizations. Translate user inputs into render parameters.
-
-Return JSON only:
-1. "params": Numerical/Color values.
-2. "poetic_desc": A short, elegant Chinese sentence describing the visual.
-
-Params:
-- baseColor: Hex (e.g., "#000510").
-- glowColor: Hex.
-- speed: Float 0.2 to 2.0.
-- twistSpeed: Float 0.1 to 1.5.
-- twistAmplitude: Float 0.5 to 2.5.
-- flowFrequency: Float 0.5 to 3.0.`
-
-    const payload = {
-        contents: [{ parts: [{ text: `User input: "${prompt}"` }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: { responseMimeType: 'application/json' },
-    }
-
-    try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        })
-
-        if (!response.ok) {
-            throw new Error(`API Error: ${response.status}`)
-        }
-
-        const data = await response.json()
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text
-        if (!rawText) {
-            throw new Error('Gemini response missing text payload')
-        }
-
-        return JSON.parse(rawText) as GeminiResult
-    } catch (error) {
-        console.error('Gemini API Failed', error)
-        return getFallbackResponse(prompt)
-    }
-}
-
-const generateRibbon = async () => {
-    const prompt = moodInput.value.trim()
-    if (!prompt || isWeaving.value) {
-        return
-    }
-
-    isWeaving.value = true
-    aiResponse.value = ''
-
-    const result = await callGemini(prompt)
-
-    if (result?.params) {
-        applyAIParams(result.params)
-        aiResponse.value = result.poetic_desc
-    } else {
-        aiResponse.value = '未能获取灵感参数，请稍后重试。'
-    }
-
-    isWeaving.value = false
 }
 
 const initAnimations = () => {
@@ -521,16 +373,6 @@ const initAnimations = () => {
                 },
                 '<'
             )
-            .to(
-                '.mood-panel-fixed',
-                {
-                    opacity: 1,
-                    y: 0,
-                    duration: 1.2,
-                    ease: 'power3.out',
-                },
-                '-=0.8'
-            )
 
         gsap.to('#hero-bg', {
             scrollTrigger: {
@@ -541,17 +383,6 @@ const initAnimations = () => {
             },
             yPercent: 15,
             scale: 1.05,
-        })
-
-        gsap.to('.mood-panel-fixed', {
-            scrollTrigger: {
-                trigger: 'header',
-                start: 'top top',
-                end: 'bottom top',
-                scrub: true,
-            },
-            opacity: 0,
-            y: -40,
         })
 
         const items = document.querySelectorAll<HTMLElement>('.project-item')
@@ -647,52 +478,34 @@ onBeforeUnmount(() => {
                 <div ref="silkContainer" aria-hidden="true" class="absolute inset-0 pointer-events-none overflow-hidden"
                     id="silk-canvas"></div>
                 <div
-                    class="absolute inset-0 bg-gradient-to-br from-[rgba(25,25,112,0.35)] via-black/80 to-[rgba(75,0,130,0.25)] pointer-events-none">
+                    class="absolute inset-0 bg-gradient-to-br from-[rgba(25,25,112,0.2)] via-transparent to-[rgba(75,0,130,0.15)] pointer-events-none">
                 </div>
                 <div
-                    class="absolute inset-0 bg-gradient-to-t from-[var(--void-black)] via-transparent to-black/50 pointer-events-none">
+                    class="absolute inset-0 bg-gradient-to-t from-[var(--void-black)] via-transparent to-black/10 pointer-events-none">
                 </div>
             </div>
 
-            <div
-                class="mood-panel-fixed hidden lg:flex flex-col gap-4 absolute top-24 right-10 w-[300px] bg-[rgba(10,10,15,0.65)] border border-white/10 rounded-2xl backdrop-blur-xl p-6 text-white shadow-[0_15px_45px_rgba(0,0,0,0.55)] opacity-0 translate-y-4 z-20">
-                <div class="flex items-center gap-3 text-[11px] uppercase tracking-[0.3em] text-muted">
-                    <span class="text-[#D4AF37]">✦</span>
-                    Mood Weaver
-                </div>
-                <textarea v-model="moodInput" aria-label="输入意境" placeholder="输入意境… 例如：银河倾泻"
-                    class="w-full h-24 bg-white/5 border border-white/15 rounded-lg text-sm text-[var(--text-body)] px-3 py-2 focus:outline-none focus:border-white/40 focus:bg-white/10 placeholder:text-white/30 transition-colors">
-                </textarea>
-                <button type="button" @click="generateRibbon" :disabled="isWeaving || !moodInput.trim()" :class="[
-                    'flex items-center justify-center gap-3 text-[11px] tracking-[0.3em] uppercase border rounded-lg py-3 transition-all duration-300',
-                    isWeaving || !moodInput.trim()
-                        ? 'border-white/10 text-white/40 bg-white/5'
-                        : 'border-white/20 text-white hover:bg-white/10'
-                ]">
-                    <div v-if="isWeaving"
-                        class="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>{{ isWeaving ? 'WEAVING' : 'GENERATE' }}</span>
-                </button>
-                <p aria-live="polite"
-                    class="text-sm font-serif italic text-white/80 leading-relaxed min-h-[48px] transition-opacity duration-700"
-                    :class="aiResponse ? 'opacity-100' : 'opacity-70'">
-                    {{ aiResponse || '用一句意境唤醒丝绸。' }}
-                </p>
-            </div>
 
-            <div class="relative z-10 text-center flex flex-col items-center px-4">
-                <p class="italic-serif text-hero-sub text-base md:text-xl mb-8 tracking-[0.3em] opacity-0 hero-sub">
-                    The <span class="text-[#D4AF37]">2025</span> Midnight Series
-                </p>
-                <h1 class="flex flex-col items-center justify-center gap-2 md:gap-4 scale-y-110">
-                    <span class="skew-title text-5xl md:text-8xl lg:text-9xl tracking-tighter"
-                        id="hero-text-1">OBSIDIAN</span>
-                    <span class="skew-title text-5xl md:text-8xl lg:text-9xl md:ml-12 tracking-tighter"
-                        id="hero-text-2">DREAMS</span>
-                </h1>
-                <div class="mt-20 opacity-0 hero-cta flex flex-col items-center">
-                    <div class="h-16 w-[1px] bg-gradient-to-b from-[#D4AF37] to-transparent mb-4 opacity-50"></div>
-                    <span class="eyebrow nav-link hover:text-white transition-colors">Discover the Essence</span>
+
+            <div class="relative z-10 w-full h-full flex flex-col justify-center px-6 md:px-20 pointer-events-none">
+                <div class="pointer-events-auto md:ml-[5%] lg:ml-[10%]">
+                    <p
+                        class="italic-serif text-hero-sub text-base md:text-xl mb-6 tracking-[0.3em] opacity-0 hero-sub text-left">
+                        The <span class="text-[#D4AF37]">2025</span> Midnight Series
+                    </p>
+                    <h1 class="flex flex-col items-start gap-0 scale-y-110">
+                        <span
+                            class="skew-title text-6xl md:text-9xl lg:text-[10rem] tracking-tighter leading-[0.85] bg-clip-text text-transparent bg-gradient-to-b from-white via-gray-200 to-gray-500 drop-shadow-[0_0_15px_rgba(100,100,255,0.3)]"
+                            id="hero-text-1">OBSIDIAN</span>
+                        <span
+                            class="skew-title text-6xl md:text-9xl lg:text-[10rem] tracking-tighter leading-[0.85] ml-12 md:ml-32 lg:ml-48 bg-clip-text text-transparent bg-gradient-to-b from-white via-gray-200 to-gray-500 drop-shadow-[0_0_15px_rgba(100,100,255,0.3)]"
+                            id="hero-text-2">DREAMS</span>
+                    </h1>
+                    <div class="mt-16 opacity-0 hero-cta flex items-center gap-6 ml-2">
+                        <div class="h-[1px] w-16 bg-gradient-to-r from-[#D4AF37] to-transparent opacity-50"></div>
+                        <span class="eyebrow nav-link hover:text-white transition-colors cursor-pointer">Discover the
+                            Essence</span>
+                    </div>
                 </div>
             </div>
 
