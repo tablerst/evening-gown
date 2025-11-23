@@ -215,6 +215,10 @@
     position: relative;
   }
 
+  .hero-deco {
+    opacity: 0;
+  }
+
   .hero-backdrop__veil,
   .hero-backdrop__gradient,
   .hero-backdrop__noise {
@@ -231,6 +235,22 @@
     mix-blend-mode: screen;
   }
 
+  .hero-backdrop__halo {
+    background: radial-gradient(circle at 35% 45%, rgba(5, 110, 65, 0.35), transparent 55%),
+      radial-gradient(circle at 70% 20%, rgba(232, 214, 179, 0.12), transparent 50%);
+    filter: blur(40px);
+    opacity: 0.55;
+    mix-blend-mode: screen;
+  }
+
+  .hero-backdrop__grid {
+    background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 140px 140px;
+    opacity: 0.15;
+    mask-image: radial-gradient(circle at 65% 25%, rgba(0, 0, 0, 0.85), transparent 70%);
+  }
+
   .hero-backdrop__noise {
     background-image: url('https://www.transparenttextures.com/patterns/asfalt-light.png');
     opacity: 0.05;
@@ -245,6 +265,93 @@
   .hero-left {
     position: relative;
     isolation: isolate;
+  }
+
+  .hero-ambient {
+    position: absolute;
+    width: 26rem;
+    height: 26rem;
+    top: -6rem;
+    left: -8rem;
+    background: radial-gradient(circle at 40% 40%, rgba(5, 110, 65, 0.45), transparent 65%);
+    filter: blur(60px);
+    opacity: 0.4;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    z-index: -2;
+  }
+
+  .hero-axis {
+    position: absolute;
+    top: 1rem;
+    bottom: 1rem;
+    left: clamp(-3rem, -5vw, -2rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.35em;
+    color: var(--text-ash);
+    text-transform: uppercase;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .hero-axis__label {
+    font-size: 0.55rem;
+    letter-spacing: 0.55em;
+    color: rgba(232, 214, 179, 0.7);
+  }
+
+  .hero-axis__line {
+    position: relative;
+    padding-left: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+
+  .hero-axis__line::before {
+    content: '';
+    position: absolute;
+    left: 0.35rem;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    width: 1px;
+    background: linear-gradient(180deg, rgba(212, 175, 55, 0) 0%, rgba(212, 175, 55, 0.6) 55%, rgba(5, 110, 65, 0.6) 100%);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.35);
+  }
+
+  .hero-axis__marker {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    text-transform: uppercase;
+    letter-spacing: 0.35em;
+  }
+
+  .hero-axis__dot {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 999px;
+    border: 1px solid rgba(212, 175, 55, 0.8);
+    box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    background: radial-gradient(circle, rgba(232, 214, 179, 0.9) 0%, rgba(4, 61, 44, 0.6) 80%);
+    margin-top: 0.15rem;
+  }
+
+  .hero-axis__caption {
+    font-size: 0.65rem;
+    letter-spacing: 0.45em;
+    color: var(--text-champagne);
+  }
+
+  .hero-axis__meta {
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    color: var(--text-ash);
+    text-transform: none;
+    margin-top: 0.15rem;
   }
 
   .hero-left__veil {
@@ -267,6 +374,11 @@
       right: -1.5rem;
       top: -2rem;
       bottom: -2rem;
+    }
+
+    .hero-axis,
+    .hero-ambient {
+      display: none;
     }
   }
 

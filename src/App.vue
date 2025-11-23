@@ -604,6 +604,8 @@ onBeforeUnmount(() => {
             <div class="hero-backdrop absolute inset-0" id="hero-bg" aria-hidden="true">
                 <div class="hero-backdrop__veil"></div>
                 <div class="hero-backdrop__gradient"></div>
+                <div class="hero-backdrop__halo hero-deco"></div>
+                <div class="hero-backdrop__grid hero-deco"></div>
                 <div class="hero-backdrop__noise"></div>
             </div>
 
@@ -611,6 +613,33 @@ onBeforeUnmount(() => {
                 <div class="hero-grid relative z-10 grid gap-12 lg:gap-16">
                     <div class="hero-left col-span-12 lg:col-span-5">
                         <div class="hero-left__veil" aria-hidden="true"></div>
+                        <div class="hero-ambient hero-deco" aria-hidden="true"></div>
+                        <div class="hero-axis hero-deco" aria-hidden="true">
+                            <span class="hero-axis__label">EMERALD TRAJECTORY</span>
+                            <div class="hero-axis__line">
+                                <div class="hero-axis__marker">
+                                    <span class="hero-axis__dot"></span>
+                                    <div>
+                                        <p class="hero-axis__caption">Atelier</p>
+                                        <p class="hero-axis__meta">Pattern sketch · 72h</p>
+                                    </div>
+                                </div>
+                                <div class="hero-axis__marker">
+                                    <span class="hero-axis__dot"></span>
+                                    <div>
+                                        <p class="hero-axis__caption">Fitting</p>
+                                        <p class="hero-axis__meta">Velvet draping · 3 sessions</p>
+                                    </div>
+                                </div>
+                                <div class="hero-axis__marker">
+                                    <span class="hero-axis__dot"></span>
+                                    <div>
+                                        <p class="hero-axis__caption">Soirée</p>
+                                        <p class="hero-axis__meta">Grand reveal · 900h</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <p class="hero-eyebrow hero-sub opacity-0">
                             THE COLLECTION · <span class="text-accent-gold">THE EMERALD NIGHT</span>
                         </p>
