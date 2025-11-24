@@ -353,10 +353,21 @@ const initSilkCanvas = () => {
     })
 
     ribbonMesh = new THREE.Mesh(geometry, silkMaterial)
-    // 调整旋转角度，使其从右上流向左下
-    ribbonMesh.rotation.z = Math.PI / 2.2
-    ribbonMesh.rotation.x = Math.PI / 5
-    ribbonMesh.position.set(5, 0, 0)
+
+    const updateMeshPosition = () => {
+        if (!ribbonMesh) return
+        const isMobile = window.innerWidth < 1024
+        if (isMobile) {
+            ribbonMesh.rotation.z = Math.PI / 3
+            ribbonMesh.rotation.x = Math.PI / 4
+            ribbonMesh.position.set(0, 2, -5)
+        } else {
+            ribbonMesh.rotation.z = Math.PI / 2.2
+            ribbonMesh.rotation.x = Math.PI / 5
+            ribbonMesh.position.set(0, -2, 0)
+        }
+    }
+    updateMeshPosition()
     scene.add(ribbonMesh)
 
     // 模拟月光环境
@@ -389,6 +400,7 @@ const initSilkCanvas = () => {
         camera.aspect = newWidth / newHeight
         camera.updateProjectionMatrix()
         renderer.setSize(newWidth, newHeight)
+        updateMeshPosition()
     }
 
     window.addEventListener('resize', resizeHandler)
