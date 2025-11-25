@@ -58,14 +58,45 @@ let motionQuery: MediaQueryList | null = null
 let motionChangeHandler: ((event: MediaQueryListEvent) => void) | null = null
 let networkInfo: NetworkInformationLike | null = null
 let networkChangeHandler: (() => void) | null = null
+let silkPointerHandler: ((event: PointerEvent) => void) | null = null
+
+const heroScrollProgress = {
+    target: 0,
+    current: 0,
+}
+
+const pointerInfluence = {
+    targetX: 0,
+    targetY: 0,
+    currentX: 0,
+    currentY: 0,
+}
+
+const silkBasePosition = new THREE.Vector3(0, -1, 2)
+const silkBaseRotation = { x: Math.PI / 4, y: 0, z: Math.PI / 2.8 }
+
+const baseSilkColor = new THREE.Color(0xf6f0e9)
+const highlightSilkColor = new THREE.Color(0xfdfaf2)
+const baseGlowColor = new THREE.Color(0xfdf3e3)
+const accentGlowColor = new THREE.Color(0xfff2d6)
 
 const targetConfig: Omit<RibbonRuntimeConfig, 'segments' | 'width' | 'length'> = {
     speed: 0.18,
     twistSpeed: 0.06,
     twistAmplitude: 0.75,
     flowFrequency: 0.45,
-    baseColor: new THREE.Color(0xf6f0e9),
-    glowColor: new THREE.Color(0xfdf8ec),
+    baseColor: baseSilkColor.clone(),
+    glowColor: baseGlowColor.clone(),
+}
+
+const updatePointerTargets = (clientX: number, clientY: number) => {
+    if (typeof window === 'undefined') {
+        return
+    }
+    const width = window.innerWidth || 1
+    const height = window.innerHeight || 1
+    pointerInfluence.targetX = THREE.MathUtils.clamp((clientX / width) * 2 - 1, -1, 1)
+    pointerInfluence.targetY = THREE.MathUtils.clamp((clientY / height) * 2 - 1, -1, 1)
 }
 
 const syncMotionPreference = (shouldReduce: boolean) => {
@@ -122,8 +153,8 @@ const config: RibbonRuntimeConfig = {
     twistSpeed: 0.06,
     twistAmplitude: 0.8,
     flowFrequency: 0.5,
-    baseColor: new THREE.Color(0xfaf5eb),
-    glowColor: new THREE.Color(0xfdf8ec),
+    baseColor: baseSilkColor.clone(),
+    glowColor: baseGlowColor.clone(),
 }
 
 const initCursor = () => {
@@ -216,22 +247,25 @@ const updateRibbon = () => {
     const glowG = config.glowColor.g
     const glowB = config.glowColor.b
 
+    const pointerEnergy = 1 + Math.min(Math.hypot(pointerInfluence.currentX, pointerInfluence.currentY), 1) * 0.65
+    const scrollEnvelope = 0.4 + heroScrollProgress.current * 0.9
+
     for (let col = 0; col < verticesPerRow; col += 1) {
         const ratio = col / widthSegments
         const x = ratio * config.length - config.length / 2
 
         // 基础波浪 - 更平滑的 S 形
-        let waveZ = Math.sin(x * 0.3 + time * 0.8) * 2.0
-        waveZ += Math.sin(x * 1.0 + time * 1.2) * 0.5
+        let waveZ = Math.sin(x * 0.35 + time * 0.8) * (1.6 + scrollEnvelope * 1.1)
+        waveZ += Math.sin(x * 1.1 - time * 0.6) * 0.55 * pointerEnergy
 
         // 中心线 Y 偏移 - 模拟飘动
-        const centerY = Math.sin(x * 0.2 + time * 0.4) * 1.5
+        const centerY = Math.sin(x * 0.18 + time * 0.35) * (1.2 + scrollEnvelope * 0.5)
 
         // 扭曲角度 - 更加柔和
-        const twist = Math.sin(x * 0.25 + time * config.twistSpeed) * config.twistAmplitude
+        const twist = Math.sin(x * 0.22 + time * config.twistSpeed) * config.twistAmplitude
 
         // 颜色计算因子
-        const flowPhase = ratio * 4 * config.flowFrequency - time * 1.5
+        const flowPhase = ratio * 4 * config.flowFrequency - time * 1.5 + pointerInfluence.currentX * 0.65
         let glowFactor = Math.sin(flowPhase)
         glowFactor = Math.pow((glowFactor + 1) / 2, 6) // 锐化高光
 
@@ -272,6 +306,21 @@ const updateRibbon = () => {
 const animateSilk = () => {
     animationFrameId = requestAnimationFrame(animateSilk)
 
+    pointerInfluence.currentX += (pointerInfluence.targetX - pointerInfluence.currentX) * 0.04
+    pointerInfluence.currentY += (pointerInfluence.targetY - pointerInfluence.currentY) * 0.05
+    heroScrollProgress.current += (heroScrollProgress.target - heroScrollProgress.current) * 0.08
+
+    const pointerEnergy = Math.min(Math.hypot(pointerInfluence.currentX, pointerInfluence.currentY), 1)
+    const scrollEnergy = heroScrollProgress.current
+    const energyMix = Math.min(pointerEnergy * 0.6 + scrollEnergy * 0.8, 1)
+
+    targetConfig.speed = 0.18 + scrollEnergy * 0.12
+    targetConfig.twistSpeed = 0.05 + pointerEnergy * 0.04
+    targetConfig.twistAmplitude = 0.65 + scrollEnergy * 0.4 + pointerEnergy * 0.2
+    targetConfig.flowFrequency = 0.4 + scrollEnergy * 0.35
+    targetConfig.baseColor.copy(baseSilkColor).lerp(highlightSilkColor, energyMix * 0.6)
+    targetConfig.glowColor.copy(baseGlowColor).lerp(accentGlowColor, 0.35 + energyMix * 0.4)
+
     config.speed += (targetConfig.speed - config.speed) * 0.05
     config.twistSpeed += (targetConfig.twistSpeed - config.twistSpeed) * 0.05
     config.twistAmplitude += (targetConfig.twistAmplitude - config.twistAmplitude) * 0.05
@@ -281,6 +330,22 @@ const animateSilk = () => {
 
     time += 0.01 * config.speed
     updateRibbon()
+
+    if (camera) {
+        const depth = typeof window !== 'undefined' && window.innerWidth < 768 ? 34 : 28
+        camera.position.x = pointerInfluence.currentX * 3.8
+        camera.position.y = pointerInfluence.currentY * -2.5 + 0.4
+        camera.position.z = depth
+        camera.lookAt(0, 0, 0)
+    }
+
+    if (ribbonMesh) {
+        ribbonMesh.rotation.x = silkBaseRotation.x + pointerInfluence.currentY * 0.12
+        ribbonMesh.rotation.y = silkBaseRotation.y + pointerInfluence.currentX * 0.08
+        ribbonMesh.rotation.z = silkBaseRotation.z + pointerInfluence.currentX * 0.05
+        ribbonMesh.position.x = silkBasePosition.x + pointerInfluence.currentX * 0.85
+        ribbonMesh.position.y = silkBasePosition.y + pointerInfluence.currentY * 0.65
+    }
 
     if (renderer && scene && camera) {
         renderer.render(scene, camera)
@@ -342,7 +407,7 @@ const initSilkCanvas = () => {
     container.appendChild(renderer.domElement)
 
     // 增加宽度方向的分段数，从 2 增加到 20，以解决光照伪影
-    const geometry = new THREE.PlaneGeometry(config.length * 1.5, config.width, config.segments, 30)
+    const geometry = new THREE.PlaneGeometry(config.length * 1.45, config.width * 1.1, config.segments, 30)
     const positionAttr = geometry.attributes.position as THREE.BufferAttribute | undefined
     if (!positionAttr) {
         console.error('PlaneGeometry is missing position attribute')
@@ -355,13 +420,20 @@ const initSilkCanvas = () => {
         color: 0xffffff,
         vertexColors: true,
         emissive: 0xfaf3e2,
-        emissiveIntensity: 0.25,
-        metalness: 0.35,
-        roughness: 0.25,
-        clearcoat: 0.95,
-        clearcoatRoughness: 0.1,
-        transmission: 0.15,
-        thickness: 1.2,
+        emissiveIntensity: 0.22,
+        metalness: 0.28,
+        roughness: 0.18,
+        clearcoat: 0.98,
+        clearcoatRoughness: 0.15,
+        transmission: 0.24,
+        thickness: 1.4,
+        sheen: 1,
+        sheenColor: new THREE.Color(0xfff5df),
+        sheenRoughness: 0.55,
+        iridescence: 0.28,
+        iridescenceIOR: 1.2,
+        iridescenceThicknessRange: [120, 320],
+        envMapIntensity: 0.4,
         side: THREE.DoubleSide,
         flatShading: false,
     })
@@ -370,16 +442,30 @@ const initSilkCanvas = () => {
 
     const updateMeshPosition = () => {
         if (!ribbonMesh) return
-        const isMobile = window.innerWidth < 1024
+
+        const viewportWidth = window.innerWidth
+        const isTablet = viewportWidth < 1280
+        const isMobile = viewportWidth < 768
+
         if (isMobile) {
-            ribbonMesh.rotation.z = Math.PI / 5
-            ribbonMesh.rotation.x = Math.PI / 3
-            ribbonMesh.position.set(0, 1, -4)
+            silkBaseRotation.x = Math.PI / 2.3
+            silkBaseRotation.y = 0.12
+            silkBaseRotation.z = Math.PI / 4.6
+            silkBasePosition.set(0.2, 0.8, -2)
+        } else if (isTablet) {
+            silkBaseRotation.x = Math.PI / 3
+            silkBaseRotation.y = 0.02
+            silkBaseRotation.z = Math.PI / 2.9
+            silkBasePosition.set(0.6, 0.1, 0.6)
         } else {
-            ribbonMesh.rotation.z = Math.PI / 2.8
-            ribbonMesh.rotation.x = Math.PI / 4
-            ribbonMesh.position.set(0, -1, 2)
+            silkBaseRotation.x = Math.PI / 3.4
+            silkBaseRotation.y = -0.08
+            silkBaseRotation.z = Math.PI / 2.45
+            silkBasePosition.set(1.2, -0.4, 1.8)
         }
+
+        ribbonMesh.rotation.set(silkBaseRotation.x, silkBaseRotation.y, silkBaseRotation.z)
+        ribbonMesh.position.copy(silkBasePosition)
     }
     updateMeshPosition()
     scene.add(ribbonMesh)
@@ -539,12 +625,28 @@ const initAnimations = () => {
                 }
             )
         })
+
+        ScrollTrigger.create({
+            trigger: '.hero-section',
+            start: 'top top',
+            end: 'bottom top',
+            onUpdate: (self) => {
+                heroScrollProgress.target = self.progress
+            },
+        })
     })
 }
 
 onMounted(() => {
     if (typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches) {
         initCursor()
+    }
+
+    if (typeof window !== 'undefined') {
+        silkPointerHandler = (event: PointerEvent) => {
+            updatePointerTargets(event.clientX, event.clientY)
+        }
+        window.addEventListener('pointermove', silkPointerHandler, { passive: true })
     }
 
     evaluateSilkFallback()
@@ -585,6 +687,11 @@ onBeforeUnmount(() => {
     if (moveHandler) {
         window.removeEventListener('mousemove', moveHandler)
     }
+
+    if (typeof window !== 'undefined' && silkPointerHandler) {
+        window.removeEventListener('pointermove', silkPointerHandler)
+    }
+    silkPointerHandler = null
 
     if (typeof window !== 'undefined' && scrollHandler) {
         window.removeEventListener('scroll', scrollHandler)
@@ -706,6 +813,9 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="hero-visual relative mt-10 lg:mt-12 min-h-[320px] lg:min-h-[520px]">
+                            <div class="hero-visual__halo" aria-hidden="true"></div>
+                            <div class="hero-visual__frame" aria-hidden="true"></div>
+                            <div class="hero-visual__grain" aria-hidden="true"></div>
                             <div class="hero-silk-shell" aria-hidden="true">
                                 <div ref="silkContainer" class="hero-silk-canvas"></div>
                                 <div class="hero-silk-fallback" v-if="isReducedMotion || shouldUseStaticSilk">
