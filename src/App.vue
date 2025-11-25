@@ -136,16 +136,18 @@ const initCursor = () => {
 
     const styles = getComputedStyle(document.documentElement)
     const accentGold = styles.getPropertyValue('--accent-gold').trim() || '#D4AF37'
-    const veilGlow = 'rgba(255, 255, 255, 0.18)'
-    const highlightGlow = 'rgba(255, 255, 255, 0.35)'
-    const idleBorder = 'rgba(0, 0, 0, 0.18)'
-    const focusBorder = 'rgba(0, 0, 0, 0.35)'
+    const neutralDot = 'rgba(26, 26, 26, 0.45)'
+    const veilGlow = 'rgba(255, 255, 255, 0.25)'
+    const accentAura = 'rgba(212, 175, 55, 0.35)'
+    const idleBorder = 'rgba(26, 26, 26, 0.18)'
 
     document.body.classList.add('has-custom-cursor')
     cursorDotRef.style.opacity = '1'
     cursorOutlineRef.style.opacity = '1'
+    cursorDotRef.style.backgroundColor = neutralDot
     cursorOutlineRef.style.borderColor = idleBorder
     cursorOutlineRef.style.background = veilGlow
+    cursorOutlineRef.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.25)'
 
     moveHandler = (event: MouseEvent) => {
         const { clientX, clientY } = event
@@ -172,9 +174,10 @@ const initCursor = () => {
         const onEnter = () => {
             cursorOutlineRef!.style.width = '50px'
             cursorOutlineRef!.style.height = '50px'
-            cursorOutlineRef!.style.borderColor = focusBorder
-            cursorOutlineRef!.style.background = highlightGlow
-            cursorOutlineRef!.style.boxShadow = `0 0 35px ${highlightGlow}`
+            cursorOutlineRef!.style.borderColor = accentGold
+            cursorOutlineRef!.style.background = 'radial-gradient(circle, rgba(255, 255, 255, 0.45) 0%, transparent 70%)'
+            cursorOutlineRef!.style.boxShadow = `0 0 35px ${accentAura}`
+            cursorDotRef!.style.backgroundColor = accentGold
         }
 
         const onLeave = () => {
@@ -182,7 +185,8 @@ const initCursor = () => {
             cursorOutlineRef!.style.height = '40px'
             cursorOutlineRef!.style.borderColor = idleBorder
             cursorOutlineRef!.style.background = veilGlow
-            cursorOutlineRef!.style.boxShadow = `0 0 10px ${veilGlow}`
+            cursorOutlineRef!.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.25)'
+            cursorDotRef!.style.backgroundColor = neutralDot
         }
 
         element.addEventListener('mouseenter', onEnter)

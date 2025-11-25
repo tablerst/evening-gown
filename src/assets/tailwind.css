@@ -16,15 +16,19 @@
     --border-hairline: #e5e5e5;
     --border-linear: linear-gradient(135deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0) 100%);
     --accent-gold: #d4af37;
-    --accent-glow: #fff5d1;
+    --accent-glow: rgba(212, 175, 55, 0.4);
+    --halo-neutral: rgba(238, 244, 255, 0.7);
+    --halo-warm: rgba(255, 240, 233, 0.65);
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-border: rgba(255, 255, 255, 0.45);
     --glass-blur: blur(20px);
-    --shadow-ambient: 0 35px 65px rgba(180, 180, 180, 0.45);
-    --shadow-card: 0 25px 45px rgba(190, 190, 190, 0.35);
+    --shadow-ambient-cool: 0 35px 65px rgba(200, 210, 232, 0.35);
+    --shadow-ambient-warm: 0 30px 60px rgba(255, 228, 205, 0.28);
+    --shadow-ambient: var(--shadow-ambient-cool);
+    --shadow-card: 0 25px 45px rgba(214, 220, 236, 0.35);
     --noise: url('https://www.transparenttextures.com/patterns/white-linen.png');
     --silk-sheen: #fff8e7;
-    --silk-glow: #f5e0c5;
+    --silk-glow: #f7ece0;
   }
 
   body {
@@ -44,6 +48,19 @@
   a {
     color: inherit;
     text-decoration: none;
+  }
+
+  a:focus-visible {
+    outline: none;
+    text-shadow: 0 0 12px rgba(212, 175, 55, 0.45);
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  .nav-ghost:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.5), 0 0 22px rgba(212, 175, 55, 0.35);
+    border-color: rgba(212, 175, 55, 0.6);
   }
 
   ::selection {
@@ -99,30 +116,31 @@
   .cursor-dot {
     width: 6px;
     height: 6px;
-    background-color: var(--accent-gold);
+    background-color: rgba(26, 26, 26, 0.45);
     position: fixed;
     inset: 0;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     z-index: 9999;
     pointer-events: none;
-    box-shadow: 0 0 12px rgba(212, 175, 55, 0.65);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.2s ease, background-color 0.25s ease;
   }
 
   .cursor-outline {
     width: 48px;
     height: 48px;
-    border: 0.5px solid rgba(212, 175, 55, 0.45);
-    background: radial-gradient(circle, rgba(255, 245, 209, 0.35) 0%, transparent 75%);
+    border: 1px solid rgba(26, 26, 26, 0.18);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.35) 0%, transparent 70%);
     position: fixed;
     inset: 0;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     z-index: 9998;
     pointer-events: none;
-    transition: width 0.25s ease, height 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.25);
+    transition: width 0.25s ease, height 0.25s ease, border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
     opacity: 0;
   }
 
@@ -244,10 +262,11 @@
   }
 
   .hero-backdrop__halo {
-    background: radial-gradient(circle at 35% 40%, rgba(245, 224, 197, 0.65), transparent 55%),
-      radial-gradient(circle at 70% 25%, rgba(212, 175, 55, 0.25), transparent 60%);
-    filter: blur(35px);
-    opacity: 0.7;
+    background: radial-gradient(circle at 35% 40%, var(--halo-neutral), transparent 55%),
+      radial-gradient(circle at 70% 25%, var(--halo-warm), transparent 65%),
+      radial-gradient(circle at 20% 75%, rgba(235, 246, 255, 0.4), transparent 70%);
+    filter: blur(40px);
+    opacity: 0.85;
   }
 
   .hero-grid {
@@ -332,30 +351,38 @@
     font-size: 0.72rem;
     letter-spacing: 0.35em;
     text-transform: uppercase;
-    border: 1px solid transparent;
-    transition: transform 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
+    border: 1px solid rgba(26, 26, 26, 0.35);
+    background: transparent;
+    color: var(--text-primary);
+    transition: background 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
   }
 
   .hero-button--primary {
-    background: linear-gradient(115deg, #ffffff 0%, #f5efe4 45%, #f0e2c9 100%);
-    color: var(--text-primary);
-    border-color: rgba(0, 0, 0, 0.08);
-    box-shadow: inset 0 0 25px rgba(255, 255, 255, 0.6), 0 15px 35px rgba(0, 0, 0, 0.08);
+    box-shadow: inset 0 0 0 rgba(255, 255, 255, 0);
   }
 
-  .hero-button--primary:hover {
-    transform: translateY(-2px);
-    box-shadow: inset 0 0 35px rgba(255, 255, 255, 0.7), 0 30px 45px rgba(0, 0, 0, 0.12);
+  .hero-button--primary:hover,
+  .hero-button--primary:focus-visible {
+    background: linear-gradient(180deg, #ffffff 0%, #f5f1e6 100%);
+    border-color: transparent;
+    box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.85), 0 18px 36px rgba(239, 232, 216, 0.55);
   }
 
   .hero-button--secondary {
-    background: transparent;
-    border-color: var(--border-hairline);
-    color: var(--text-secondary);
+    border-color: rgba(255, 255, 255, 0.65);
+    color: #ffffff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    background: var(--glass-bg);
+    backdrop-filter: blur(18px);
+    box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.45), 0 20px 45px rgba(213, 224, 241, 0.35);
   }
 
-  .hero-button--secondary:hover {
-    border-color: var(--text-primary);
+  .hero-button--secondary:hover,
+  .hero-button--secondary:focus-visible {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(255, 255, 255, 0.85);
+    box-shadow: inset 0 0 35px rgba(255, 255, 255, 0.65), 0 25px 55px rgba(233, 238, 250, 0.45);
+    color: #ffffff;
   }
 
   .hero-pill-group {
@@ -444,8 +471,9 @@
   .hero-silk-fallback__glow {
     width: 120%;
     height: 120%;
-    background: radial-gradient(circle at 60% 40%, rgba(255, 255, 255, 0.7), transparent 70%);
-    filter: blur(18px);
+    background: radial-gradient(circle at 60% 40%, var(--halo-neutral), transparent 70%),
+      radial-gradient(circle at 35% 65%, var(--halo-warm), transparent 80%);
+    filter: blur(24px);
   }
 
   .section-block {
@@ -505,22 +533,26 @@
   }
 
   .bento-card {
-    border: 1px solid var(--border-hairline);
+    border: 1px solid transparent;
     border-radius: 1.5rem;
-    background: var(--bg-card);
-    box-shadow: var(--shadow-card);
+    background:
+      linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
+      var(--border-linear) border-box;
+    box-shadow: var(--shadow-card), var(--shadow-ambient-warm);
     overflow: hidden;
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     padding: 1.25rem;
-    transition: transform 0.5s ease, box-shadow 0.5s ease;
+    transition: box-shadow 0.5s ease, background 0.5s ease;
   }
 
   .bento-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 35px 60px rgba(0, 0, 0, 0.07);
+    background:
+      linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
+      linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(212, 175, 55, 0.15)) border-box;
+    box-shadow: inset 0 0 35px rgba(255, 255, 255, 0.75), var(--shadow-ambient-cool);
   }
 
   .bento-card--xl {
@@ -723,8 +755,10 @@
   .site-footer__glow {
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at center, rgba(212, 175, 55, 0.2), transparent 60%);
-    opacity: 0.6;
+    background: radial-gradient(circle at 45% 40%, var(--halo-neutral), transparent 65%),
+      radial-gradient(circle at 60% 70%, var(--halo-warm), transparent 75%);
+    opacity: 0.65;
+    filter: blur(30px);
     pointer-events: none;
   }
 
