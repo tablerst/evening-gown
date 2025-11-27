@@ -439,7 +439,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="bento-grid">
-                        <article class="bento-card bento-card--xl project-item">
+                        <article class="bento-card bento-card--xl bento-card--media project-item">
                             <div class="bento-card__media" aria-hidden="true">
                                 <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1980&auto=format&fit=crop"
                                     alt="Architected halo gown" loading="lazy" />
@@ -451,7 +451,7 @@ onBeforeUnmount(() => {
                             </div>
                         </article>
 
-                        <article class="bento-card bento-card--tall project-item">
+                        <article class="bento-card bento-card--tall bento-card--media project-item">
                             <div class="bento-card__media" aria-hidden="true">
                                 <img src="https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?q=80&w=800&auto=format&fit=crop"
                                     alt="Hand pleated silk drape" loading="lazy" />
@@ -475,7 +475,7 @@ onBeforeUnmount(() => {
                             </div>
                         </article>
 
-                        <article class="bento-card project-item">
+                        <article class="bento-card bento-card--media project-item">
                             <div class="bento-card__media" aria-hidden="true">
                                 <img src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=800&auto=format&fit=crop"
                                     alt="Pearl embroidery detail" loading="lazy" />
