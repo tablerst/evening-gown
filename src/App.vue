@@ -7,17 +7,7 @@ import type { NetworkInformationLike, NavigatorWithConnection } from './modules/
 
 gsap.registerPlugin(ScrollTrigger)
 
-type HoverBinding = {
-    element: Element
-    enter: () => void
-    leave: () => void
-}
-
-let moveHandler: ((event: MouseEvent) => void) | null = null
-const hoverBindings: HoverBinding[] = []
 let ctx: gsap.Context | null = null
-let cursorDotRef: HTMLElement | null = null
-let cursorOutlineRef: HTMLElement | null = null
 
 const silkContainer = ref<HTMLDivElement | null>(null)
 const isNavCompacted = ref(false)
@@ -40,76 +30,6 @@ const {
     isReducedMotion,
     shouldUseStaticSilk,
 })
-
-const initCursor = () => {
-    cursorDotRef = document.querySelector('.cursor-dot') as HTMLElement | null
-    cursorOutlineRef = document.querySelector('.cursor-outline') as HTMLElement | null
-
-    if (!cursorDotRef || !cursorOutlineRef) {
-        return
-    }
-
-    const styles = getComputedStyle(document.documentElement)
-    const accentGold = styles.getPropertyValue('--accent-gold').trim() || '#D4AF37'
-    const neutralDot = 'rgba(26, 26, 26, 0.45)'
-    const veilGlow = 'rgba(255, 255, 255, 0.25)'
-    const accentAura = 'rgba(212, 175, 55, 0.35)'
-    const idleBorder = 'rgba(26, 26, 26, 0.18)'
-
-    document.body.classList.add('has-custom-cursor')
-    cursorDotRef.style.opacity = '1'
-    cursorOutlineRef.style.opacity = '1'
-    cursorDotRef.style.backgroundColor = neutralDot
-    cursorOutlineRef.style.borderColor = idleBorder
-    cursorOutlineRef.style.background = veilGlow
-    cursorOutlineRef.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.25)'
-
-    moveHandler = (event: MouseEvent) => {
-        const { clientX, clientY } = event
-        cursorDotRef!.style.left = `${clientX}px`
-        cursorDotRef!.style.top = `${clientY}px`
-        cursorOutlineRef!.animate(
-            {
-                left: `${clientX}px`,
-                top: `${clientY}px`,
-            },
-            { duration: 400, fill: 'forwards' }
-        )
-    }
-
-    window.addEventListener('mousemove', moveHandler)
-
-    const interactiveElements = Array.from(
-        document.querySelectorAll<HTMLElement>(
-            'a, button, textarea, .project-item, .hero-cta button, .nav-link, .nav-ghost, .bento-card'
-        )
-    )
-
-    interactiveElements.forEach((element) => {
-        const onEnter = () => {
-            cursorOutlineRef!.style.width = '50px'
-            cursorOutlineRef!.style.height = '50px'
-            cursorOutlineRef!.style.borderColor = accentGold
-            cursorOutlineRef!.style.background = 'radial-gradient(circle, rgba(255, 255, 255, 0.45) 0%, transparent 70%)'
-            cursorOutlineRef!.style.boxShadow = `0 0 35px ${accentAura}`
-            cursorDotRef!.style.backgroundColor = accentGold
-        }
-
-        const onLeave = () => {
-            cursorOutlineRef!.style.width = '40px'
-            cursorOutlineRef!.style.height = '40px'
-            cursorOutlineRef!.style.borderColor = idleBorder
-            cursorOutlineRef!.style.background = veilGlow
-            cursorOutlineRef!.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.25)'
-            cursorDotRef!.style.backgroundColor = neutralDot
-        }
-
-        element.addEventListener('mouseenter', onEnter)
-        element.addEventListener('mouseleave', onLeave)
-
-        hoverBindings.push({ element, enter: onEnter, leave: onLeave })
-    })
-}
 
 const initAnimations = () => {
     ctx = gsap.context(() => {
@@ -242,10 +162,6 @@ const initAnimations = () => {
 }
 
 onMounted(() => {
-    if (typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches) {
-        initCursor()
-    }
-
     evaluateSilkFallback()
 
     if (typeof window !== 'undefined' && 'matchMedia' in window) {
@@ -281,10 +197,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-    if (moveHandler) {
-        window.removeEventListener('mousemove', moveHandler)
-    }
-
     if (typeof window !== 'undefined' && scrollHandler) {
         window.removeEventListener('scroll', scrollHandler)
     }
@@ -296,25 +208,11 @@ onBeforeUnmount(() => {
     motionQuery = null
     motionChangeHandler = null
 
-    hoverBindings.forEach(({ element, enter, leave }) => {
-        element.removeEventListener('mouseenter', enter)
-        element.removeEventListener('mouseleave', leave)
-    })
-    hoverBindings.length = 0
-
     if (networkInfo && networkChangeHandler && networkInfo.removeEventListener) {
         networkInfo.removeEventListener('change', networkChangeHandler)
     }
     networkInfo = null
     networkChangeHandler = null
-
-    document.body.classList.remove('has-custom-cursor')
-    if (cursorDotRef) {
-        cursorDotRef.style.opacity = '0'
-    }
-    if (cursorOutlineRef) {
-        cursorOutlineRef.style.opacity = '0'
-    }
 
     disposeSilk()
     ctx?.revert()
@@ -324,9 +222,6 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="site-root min-h-screen bg-atelier text-charcoal">
-        <div class="cursor-dot" aria-hidden="true"></div>
-        <div class="cursor-outline" aria-hidden="true"></div>
-
         <nav :class="[
             'lens-nav fixed top-0 w-full z-50 px-6 md:px-10 flex justify-between items-center transition-all duration-300',
             isNavCompacted ? 'py-3 lens-nav--compact' : 'py-5'
