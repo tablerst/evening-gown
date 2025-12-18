@@ -678,7 +678,6 @@ export const createSilkRenderer = ({
             return
         }
 
-        const nav = navigator as NavigatorWithConnection
         const lacksWebGL = !supportsWebGL()
         // 本版本以“画质优先”为目标：不再因为 CPU/网络做静态回退，仅在缺少 WebGL 时回退。
         const shouldFallback = lacksWebGL

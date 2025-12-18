@@ -2,14 +2,19 @@
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import * as THREE from 'three'
 import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
 import gsap from 'gsap'
 import bgUrl from '@/assets/bg.webp'
+import logoUrl from '@/assets/logo.webp'
 
 const containerRef = ref<HTMLDivElement | null>(null)
 const cardContentRef = ref<HTMLDivElement | null>(null)
+const logoRef = ref<HTMLDivElement | null>(null)
 
 const initScene = () => {
-    if (!containerRef.value || !cardContentRef.value) return
+    if (!containerRef.value || !cardContentRef.value || !logoRef.value) return
 
     // --- 1. Setup Basic Scene ---
     const width = window.innerWidth
@@ -18,189 +23,292 @@ const initScene = () => {
     const scene = new THREE.Scene()
     const cssScene = new THREE.Scene()
 
-    // Camera setup to match pixels 1:1 at z=0
+    // Camera setup
     const fov = 45
     const camera = new THREE.PerspectiveCamera(fov, width / height, 1, 5000)
     const zDist = (height / 2) / Math.tan((fov * Math.PI / 180) / 2)
     camera.position.set(0, 0, zDist)
 
     // --- 2. Renderers ---
-    // WebGL Renderer (for the card body & shadows)
     const webglRenderer = new THREE.WebGLRenderer({
         alpha: true,
-        antialias: true
+        antialias: true,
+        powerPreference: "high-performance"
     })
     webglRenderer.setSize(width, height)
-    webglRenderer.setPixelRatio(window.devicePixelRatio)
+    webglRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    webglRenderer.outputColorSpace = THREE.SRGBColorSpace
     webglRenderer.shadowMap.enabled = true
     webglRenderer.shadowMap.type = THREE.PCFSoftShadowMap
+    webglRenderer.toneMapping = THREE.ACESFilmicToneMapping
+    webglRenderer.toneMappingExposure = 1.0
     webglRenderer.domElement.style.position = 'absolute'
     webglRenderer.domElement.style.top = '0'
     webglRenderer.domElement.style.zIndex = '1'
-    webglRenderer.domElement.style.pointerEvents = 'none' // Let events pass to CSS3D
+    webglRenderer.domElement.style.pointerEvents = 'none'
     containerRef.value.appendChild(webglRenderer.domElement)
 
-    // CSS3D Renderer (for the HTML content)
     const cssRenderer = new CSS3DRenderer()
     cssRenderer.setSize(width, height)
     cssRenderer.domElement.style.position = 'absolute'
     cssRenderer.domElement.style.top = '0'
-    cssRenderer.domElement.style.zIndex = '2' // On top of WebGL
+    cssRenderer.domElement.style.zIndex = '2'
     containerRef.value.appendChild(cssRenderer.domElement)
 
+    // --- 2.1 Environment (critical for crystal reflections) ---
+    RectAreaLightUniformsLib.init()
+    const pmremGenerator = new THREE.PMREMGenerator(webglRenderer)
+    pmremGenerator.compileEquirectangularShader()
+    const envTexture = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture
+    scene.environment = envTexture
+
     // --- 3. Objects ---
+    // NOTE: The same Object3D cannot belong to two scenes.
+    // If we add a group to cssScene after scene.add(), it will be removed from the WebGL scene.
+    // So we keep two groups and sync their transforms each frame.
+    const webglGroup = new THREE.Group()
+    const cssGroup = new THREE.Group()
+    scene.add(webglGroup)
+    cssScene.add(cssGroup)
 
-    // Group to move both WebGL and CSS objects together
-    const cardGroup = new THREE.Group()
-    scene.add(cardGroup)
-    cssScene.add(cardGroup)
+    const cardWidth = 600
+    const cardHeight = 400
+    const cardThickness = 30
 
-    // Card Dimensions (match the HTML div size)
-    const cardWidth = 580
-    const cardHeight = 380
+    // 3.0 Background Plane (for contrast; transmission still needs reflections to read as crystal)
+    const textureLoader = new THREE.TextureLoader()
+    const bgTexture = textureLoader.load(bgUrl)
+    bgTexture.colorSpace = THREE.SRGBColorSpace
+    // A touch of softness: rely on mipmaps + linear filtering for a subtle blur.
+    bgTexture.generateMipmaps = true
+    bgTexture.minFilter = THREE.LinearMipmapLinearFilter
+    bgTexture.magFilter = THREE.LinearFilter
+    bgTexture.anisotropy = 1
+    bgTexture.needsUpdate = true
 
-    // 3.1 WebGL Card Body (The "Physical" Card)
-    const geometry = new THREE.PlaneGeometry(cardWidth, cardHeight, 32, 32)
-    // Glass/Paper Material
+    const bgGeo = new THREE.PlaneGeometry(1, 1)
+    const bgMat = new THREE.MeshBasicMaterial({ map: bgTexture })
+    // Avoid background plane writing depth; it should never occlude the glass/card.
+    bgMat.depthWrite = false
+    const bgMesh = new THREE.Mesh(bgGeo, bgMat)
+    const bgZ = -800
+    // Keep background in world space to preserve depth parallax.
+    bgMesh.position.set(0, 0, bgZ)
+    scene.add(bgMesh)
+    bgMesh.renderOrder = -1000
+    bgMesh.frustumCulled = false
+
+    // Background fitting helpers (avoid edges even when camera translates/rotates)
+    const bgTarget = new THREE.Vector3(0, 0, 0)
+    const bgDir = new THREE.Vector3()
+    const bgCenter = new THREE.Vector3()
+    const bgQuatInv = new THREE.Quaternion()
+    const bgOffsetLocal = new THREE.Vector3()
+
+    const updateBackground = () => {
+        // Always face the camera so the plane remains a true “backdrop”.
+        bgMesh.quaternion.copy(camera.quaternion)
+
+        // Find where the view-center ray (camera -> target) hits z = bgZ.
+        bgDir.subVectors(bgTarget, camera.position).normalize()
+        // Guard: avoid division by ~0 (shouldn't happen in this scene).
+        if (Math.abs(bgDir.z) < 1e-6) {
+            return
+        }
+        const t = (bgZ - camera.position.z) / bgDir.z
+        bgCenter.copy(camera.position).addScaledVector(bgDir, t)
+
+        // Base size needed at that depth.
+        const dist = camera.position.distanceTo(bgCenter)
+        const vHeight = 2 * Math.tan(THREE.MathUtils.degToRad(fov / 2)) * dist
+        const vWidth = vHeight * camera.aspect
+
+        // If the plane's center isn't on the view-center hit point, extend size to cover.
+        bgQuatInv.copy(bgMesh.quaternion).invert()
+        bgOffsetLocal.copy(bgCenter).sub(bgMesh.position).applyQuaternion(bgQuatInv)
+        const extraX = Math.abs(bgOffsetLocal.x) * 2
+        const extraY = Math.abs(bgOffsetLocal.y) * 2
+
+        // Extra margin to hide sub-pixel seams.
+        const margin = Math.max(vWidth, vHeight) * 0.06
+        bgMesh.scale.set(vWidth + extraX + margin, vHeight + extraY + margin, 1)
+    }
+    updateBackground()
+
+    // 3.1 WebGL Card Body (Thick Crystal Block)
+    // Using BoxGeometry for thickness
+    const geometry = new RoundedBoxGeometry(cardWidth, cardHeight, cardThickness, 10, 10)
+
+    // Crystal Material
     const material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0.1,
-        roughness: 0.4, // Frosted glass roughness
-        transmission: 0.0, // Use opacity for transparency to let CSS blur show
+        color: 0xfffbf3,
+        metalness: 0.0,
+        roughness: 0.08,
+        transmission: 1.0,
+        thickness: cardThickness * 0.9,
+        ior: 1.45,
+        dispersion: 0.9,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.06,
+        envMapIntensity: 1.4,
+        specularIntensity: 1.0,
+        specularColor: new THREE.Color(0xffffff),
+        attenuationColor: new THREE.Color(0xfff2df),
+        attenuationDistance: 650,
         transparent: true,
-        opacity: 0.1, // Very subtle glass body
-        thickness: 2,
-        clearcoat: 0.5,
-        clearcoatRoughness: 0.1,
-        side: THREE.DoubleSide
+        opacity: 0.98
     })
+
     const mesh = new THREE.Mesh(geometry, material)
     mesh.castShadow = true
     mesh.receiveShadow = true
-    cardGroup.add(mesh)
+    webglGroup.add(mesh)
 
-    // 3.2 CSS3D Object (The HTML Content)
+    // Edge highlight (gives the “crystal slab” read even when refraction is subtle)
+    const edges = new THREE.EdgesGeometry(geometry, 35)
+    const edgeLines = new THREE.LineSegments(
+        edges,
+        new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.22
+        })
+    )
+    edgeLines.scale.set(1.002, 1.002, 1.002)
+    webglGroup.add(edgeLines)
+
+    // 3.2 CSS3D Object (Card Content)
+    // Position it slightly in front of the glass block face
     const object = new CSS3DObject(cardContentRef.value)
-    // CSS3DObject is transparent by default, content is in the div
-    cardGroup.add(object)
+    object.position.z = cardThickness / 2 + 1
+    cssGroup.add(object)
 
-    // 3.3 Shadow Plane (Invisible plane to catch shadow)
-    const shadowPlaneGeo = new THREE.PlaneGeometry(width * 2, height * 2)
-    const shadowPlaneMat = new THREE.ShadowMaterial({
-        opacity: 0.2, // Slightly darker to be visible on light bg
-        color: 0x1a1a1a // Soft charcoal shadow
-    })
-    const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat)
-    shadowPlane.position.z = -50 // Behind the card
-    shadowPlane.receiveShadow = true
-    scene.add(shadowPlane)
+    // 3.3 CSS3D Object (Logo)
+    // Position logo inside or just above
+    const logoObject = new CSS3DObject(logoRef.value)
+    // Keep it near the top edge to avoid overlapping the title text.
+    // Also keep Z close to content plane so it doesn't appear overly large.
+    logoObject.position.z = cardThickness / 2 + 2
+    logoObject.position.y = cardHeight / 2 - 60
+    logoObject.scale.setScalar(0.92)
+    cssGroup.add(logoObject)
 
     // --- 4. Lighting ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.25)
     scene.add(ambientLight)
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8)
-    dirLight.position.set(-200, 500, 500) // Top-left light source to match bg
+    // Main Directional Light (Sun)
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.4)
+    dirLight.position.set(500, 500, 1000)
     dirLight.castShadow = true
     dirLight.shadow.mapSize.width = 2048
     dirLight.shadow.mapSize.height = 2048
-    dirLight.shadow.camera.near = 0.5
-    dirLight.shadow.camera.far = 5000
-    // Adjust shadow camera frustum to cover the scene
-    const d = 1000
-    dirLight.shadow.camera.left = -d
-    dirLight.shadow.camera.right = d
-    dirLight.shadow.camera.top = d
-    dirLight.shadow.camera.bottom = -d
     scene.add(dirLight)
 
-    // SpotLight for sheen
-    const spotLight = new THREE.SpotLight(0xfff0dd, 2.0) // Increased intensity
-    spotLight.position.set(-200, 200, 600)
-    spotLight.angle = Math.PI / 6
+    // Rim Light (for edges)
+    const spotLight = new THREE.SpotLight(0xffeebb, 4.0)
+    spotLight.position.set(-500, 500, 0)
+    spotLight.lookAt(0, 0, 0)
+    spotLight.angle = Math.PI / 4
     spotLight.penumbra = 0.5
     scene.add(spotLight)
 
-    // --- 5. Initial State & Animation ---
+    // Bottom fill light
+    const rectLight = new THREE.RectAreaLight(0xffffff, 2.0, cardWidth, cardHeight)
+    rectLight.position.set(0, -200, 100)
+    rectLight.lookAt(0, 0, 0)
+    scene.add(rectLight)
 
-    // Initial Tilt (30 degrees approx)
-    // Using Euler angles. 30 deg = Math.PI / 6
-    const initialRotX = -Math.PI / 12 // 15 deg tilt back
-    const initialRotY = Math.PI / 12  // 15 deg tilt side
-    // Total tilt visual approx 30 deg combined
+    // --- 5. Interaction & Parallax ---
+    let mouseX = 0
+    let mouseY = 0
 
-    cardGroup.rotation.x = initialRotX
-    cardGroup.rotation.y = initialRotY
+    const onMouseMove = (e: MouseEvent) => {
+        mouseX = (e.clientX / window.innerWidth) * 2 - 1
+        mouseY = -(e.clientY / window.innerHeight) * 2 + 1
+    }
+    window.addEventListener('mousemove', onMouseMove)
 
     // Hover Interaction
     const onHover = () => {
-        gsap.to(cardGroup.position, {
-            y: 30, // Levitate up
-            z: 50, // Move closer
-            duration: 0.6,
+        gsap.to(webglGroup.rotation, {
+            x: -Math.PI / 32, // Slight tilt up
+            duration: 0.8,
             ease: 'power2.out'
         })
-        gsap.to(cardGroup.rotation, {
-            x: 0, // Straighten up
-            y: 0,
-            duration: 0.6,
+        gsap.to(webglGroup.position, {
+            z: 20,
+            duration: 0.8,
             ease: 'power2.out'
         })
-        // Lift shadow plane slightly or fade it? 
-        // Actually shadow moves naturally with the object.
     }
 
     const onLeave = () => {
-        gsap.to(cardGroup.position, {
-            y: 0,
-            z: 0,
-            duration: 0.8,
+        gsap.to(webglGroup.rotation, {
+            x: 0,
+            duration: 1.0,
             ease: 'power2.inOut'
         })
-        gsap.to(cardGroup.rotation, {
-            x: initialRotX,
-            y: initialRotY,
-            duration: 0.8,
+        gsap.to(webglGroup.position, {
+            z: 0,
+            duration: 1.0,
             ease: 'power2.inOut'
         })
     }
 
-    // Attach events to the DOM element (the card content div)
-    // Note: CSS3DObject makes the div interactive.
     if (cardContentRef.value) {
         cardContentRef.value.addEventListener('mouseenter', onHover)
         cardContentRef.value.addEventListener('mouseleave', onLeave)
     }
 
     // --- 6. Loop ---
+    let rafId = 0
     const animate = () => {
-        requestAnimationFrame(animate)
+        rafId = requestAnimationFrame(animate)
+
+        // Smooth Mouse Parallax
+        // Move camera slightly based on mouse to create depth
+        camera.position.x += (mouseX * 50 - camera.position.x) * 0.05
+        camera.position.y += (mouseY * 50 - camera.position.y) * 0.05
+        camera.lookAt(scene.position)
+
+        // Keep background perfectly covered while preserving parallax.
+        updateBackground()
+
+        // Keep CSS3D in perfect lockstep with WebGL transforms
+        cssGroup.position.copy(webglGroup.position)
+        cssGroup.quaternion.copy(webglGroup.quaternion)
+        cssGroup.scale.copy(webglGroup.scale)
+
         webglRenderer.render(scene, camera)
         cssRenderer.render(cssScene, camera)
     }
     animate()
 
-    // Resize
     const onResize = () => {
         const w = window.innerWidth
         const h = window.innerHeight
         camera.aspect = w / h
-        // Recalculate Z to keep 1:1 pixel ratio
         camera.position.z = (h / 2) / Math.tan((fov * Math.PI / 180) / 2)
         camera.updateProjectionMatrix()
         webglRenderer.setSize(w, h)
         cssRenderer.setSize(w, h)
+        updateBackground()
     }
     window.addEventListener('resize', onResize)
 
     return () => {
         window.removeEventListener('resize', onResize)
+        window.removeEventListener('mousemove', onMouseMove)
         if (cardContentRef.value) {
             cardContentRef.value.removeEventListener('mouseenter', onHover)
             cardContentRef.value.removeEventListener('mouseleave', onLeave)
         }
+        if (rafId) cancelAnimationFrame(rafId)
         containerRef.value?.removeChild(webglRenderer.domElement)
         containerRef.value?.removeChild(cssRenderer.domElement)
+        envTexture.dispose()
+        pmremGenerator.dispose()
         webglRenderer.dispose()
     }
 }
@@ -212,31 +320,43 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="min-h-screen flex items-center justify-center relative overflow-hidden"
-        :style="{ backgroundImage: `url(${bgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }">
+    <div class="min-h-screen flex items-center justify-center relative overflow-hidden bg-stone-100">
 
         <!-- 3D Container -->
         <div ref="containerRef" class="absolute inset-0 z-10"></div>
 
-        <!-- Card Content (Hidden from normal flow, used by CSS3D) -->
+        <!-- Hidden Content for CSS3D -->
         <div class="hidden">
+            <!-- 1. Logo Layer (Floating) -->
+            <div ref="logoRef" class="text-center select-none pointer-events-none flex flex-col items-center">
+                <img :src="logoUrl" alt="White Phantom Logo" class="w-48 h-auto opacity-95" />
+            </div>
+
+            <!-- 2. Card Body Layer (Content Only) -->
+            <!-- Note: No background, no border, just text. The glass block provides the body. -->
             <div ref="cardContentRef"
-                class="w-[580px] h-[380px] bg-white/60 backdrop-blur-2xl border border-white/50 rounded-3xl p-12 flex flex-col items-center justify-center text-center shadow-[0_20px_40px_-10px_rgba(200,200,200,0.4)] select-none cursor-pointer">
+                class="w-[600px] h-[400px] flex flex-col items-center justify-center text-center cursor-pointer p-12 select-none">
 
-                <p class="eyebrow mb-8 tracking-[0.4em] text-stone/80">PREVIEW MODE</p>
+                <div class="flex flex-col items-center gap-8 mt-16">
+                    <div class="space-y-3">
+                        <h2 class="font-serif italic text-4xl text-[#1A1A1A] tracking-wide">
+                            The Atelier
+                        </h2>
+                        <div class="flex flex-col gap-1">
+                            <p class="font-sans text-[11px] text-[#595959] uppercase tracking-[0.2em]">
+                                Site Under Construction
+                            </p>
+                            <p class="font-sans text-[10px] text-[#999] tracking-[0.15em]">
+                                官网正在开发中
+                            </p>
+                        </div>
+                    </div>
 
-                <h1 class="font-display text-6xl italic mb-4 text-charcoal">White Phantom</h1>
-                <h2 class="font-serif text-2xl text-stone mb-8">Site Under Construction</h2>
-
-                <p class="text-stone leading-relaxed mb-10 font-light max-w-md">
-                    当前站点处于开发预览模式。<br />
-                    悬浮卡片以解锁 Linear Luxury 的极致体验。
-                </p>
-
-                <div class="flex gap-4">
-                    <a class="hero-button hero-button--primary nav-link inline-flex items-center justify-center px-10 py-3 text-sm"
-                        href="/" aria-label="刷新页面">
-                        刷新页面
+                    <a class="group relative inline-flex items-center justify-center px-8 py-2.5 overflow-hidden transition-all border border-[#1A1A1A] bg-transparent hover:bg-gradient-to-br hover:from-white hover:to-[#F2F0EA] hover:border-white/0 text-[#1A1A1A]"
+                        href="/" aria-label="Enter Gallery">
+                        <span class="relative text-[10px] tracking-[0.25em] uppercase font-medium">
+                            Enter Gallery
+                        </span>
                     </a>
                 </div>
             </div>
@@ -245,7 +365,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Ensure the hidden content is still renderable by CSS3D */
 .hidden {
     display: none;
 }

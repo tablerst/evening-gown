@@ -18,9 +18,6 @@ const shouldUseStaticSilk = ref(false)
 const onSilkContainerEl = (el: HTMLDivElement | null) => {
     silkContainer.value = el
 }
-
-let motionQuery: MediaQueryList | null = null
-let motionChangeHandler: ((event: MediaQueryListEvent) => void) | null = null
 const {
     heroScrollProgress,
     evaluateFallback: evaluateSilkFallback,
