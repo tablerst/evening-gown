@@ -9,6 +9,11 @@ import gsap from 'gsap'
 import bgUrl from '@/assets/bg.webp'
 import logoUrl from '@/assets/logo.webp'
 
+// Logo tint via CSS filter (keeps original intrinsic size/aspect ratio).
+// Black (emphasis): brightness(0) saturate(100%)
+// If you want other colors later, we can provide preset filter strings.
+const logoFilter = 'brightness(0) saturate(100%)'
+
 const containerRef = ref<HTMLDivElement | null>(null)
 const cardContentRef = ref<HTMLDivElement | null>(null)
 const logoRef = ref<HTMLDivElement | null>(null)
@@ -329,7 +334,7 @@ onMounted(() => {
         <div class="hidden">
             <!-- 1. Logo Layer (Floating) -->
             <div ref="logoRef" class="text-center select-none pointer-events-none flex flex-col items-center">
-                <img :src="logoUrl" alt="White Phantom Logo" class="w-48 h-auto opacity-95" />
+                <img :src="logoUrl" alt="Logo" class="w-48 h-auto opacity-95" :style="{ filter: logoFilter }" />
             </div>
 
             <!-- 2. Card Body Layer (Content Only) -->
