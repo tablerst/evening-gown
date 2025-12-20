@@ -1,0 +1,153 @@
+{
+  "nav": {
+    "brandLine1": "NOIR & ÉCLAT",
+    "brandLine2": "WHITE PHANTOM",
+    "links": {
+      "process": "Process",
+      "brief": "Brief",
+      "seasonal": "Seasonal",
+      "catalog": "Catalog",
+      "appointment": "Appointment"
+    },
+    "cta": "Book Private Salon",
+    "language": {
+      "toggle": "Language",
+      "zh": "中文",
+      "en": "EN"
+    }
+  },
+  "footer": {
+    "tagline": "BY APPOINTMENT ONLY",
+    "brand": "FLEURLIS",
+    "instagram": "Instagram",
+    "wechat": "WeChat",
+    "email": "Email",
+    "legal": "© 2025 FLEURLIS · SUZHOU · EST. 2017"
+  },
+  "hero": {
+    "label": "// INTRODUCTION_THEATRE",
+    "body": "EST. 2008 · SHUNHE FACTORY\n20 YEARS IN CUSTOM & WHOLESALE\nWE KNOW QUALITY · MARKET · DELIVERY\n\nCRAFTSMANSHIP IN EVERY STEP\n--------------------------------\nSOURCE FACTORY · GLOBAL SUPPLY"
+  },
+  "ticker": {
+    "release": "NEW COLLECTION RELEASE · 2025 S/S · WHOLESALE ONLY ·",
+    "fashionWeek": "SHANGHAI FASHION WEEK · BOOTH A-12 ·",
+    "leadTime": "PRODUCTION LEAD TIME: 14 DAYS ·"
+  },
+  "seasonal": {
+    "title": "Seasonal Collection",
+    "season": "2025 S/S",
+    "series": "SERIES {index}",
+    "lookbook": "VIEW LOOKBOOK ->"
+  },
+  "product": {
+    "title": "New Arrivals",
+    "total": "TOTAL: {count}",
+    "filter": "FILTER: ALL",
+    "sort": "SORT: DATE",
+    "style": "STYLE #{id}",
+    "login": "LOGIN FOR PRICE",
+    "add": "Add to list"
+  },
+  "info": {
+    "designerTitle": "Designer's Note",
+    "designerBody": "We strip away the unnecessary. No ruffles, no excess. Just structure and silhouette. Our designs are architectural blueprints for the body.",
+    "designerSign": "- Chief Director",
+    "appointmentTitle": "Appointment",
+    "appointmentBody": "Visit our showroom to feel the fabric quality. We offer private viewing sessions for wholesale partners.",
+    "appointmentCta": "Book Visit",
+    "brandTitle": "The Brand",
+    "brandStats": {
+      "est": "EST.",
+      "estValue": "2017",
+      "hq": "HQ",
+      "hqValue": "SUZHOU",
+      "clients": "CLIENTS",
+      "clientsValue": "GLOBAL B2B",
+      "capacity": "CAPACITY",
+      "capacityValue": "50,000/YR"
+    }
+  },
+  "preview": {
+    "ref": "REF: 2025-ARCHIVE",
+    "security": "SECURE GATEWAY",
+    "heading": "Design-Production-Sales",
+    "subheading": "Est. 2017 · Full Process Supported",
+    "enter": "[ Enter Archive ]",
+    "ready": "System Ready"
+  },
+  "atelier": {
+    "eyebrow": "THE ATELIER",
+    "title": "Atelier Flow · Linear Precision",
+    "lede": "Present the couture workflow like an interface so clients read fabric weight, sewing steps, and schedules as if browsing product specs.",
+    "routineTitle": "Routine Timeline",
+    "timeline": [
+      {
+        "title": "DAY 01 · PATTERN SKETCH",
+        "desc": "72h sketching and draping; transparent taffeta calibrates the pattern."
+      },
+      {
+        "title": "DAY 04 · MATERIAL CURATION",
+        "desc": "Champagne taffeta × matte pearl organza; log humidity and texture."
+      },
+      {
+        "title": "DAY 09 · FITTING",
+        "desc": "Three fittings + laser embroidery alignment; keep a data log for every adjustment."
+      }
+    ],
+    "meta": ["Light transmission test", "Fragrance pairing", "Tactile archive"],
+    "materialLabTitle": "Material Lab",
+    "materialLabCopy": "Record each material with high-key photography and sync to WebGL silk shader parameters for digital twins, keeping on/offline color temperature aligned.",
+    "pills": {
+      "reflectance": "0.78 · pearl",
+      "roughness": "0.32 · satin",
+      "colorDrift": "Cool white ↔ Warm gold",
+      "windProfile": "Perlin 0.6"
+    }
+  },
+  "couture": {
+    "eyebrow": "COUTURE & CUSTOM",
+    "title": "Book a White Phantom fitting",
+    "copy": "Each fitting happens in a frosted-glass quiet room with dawn-like ambient light. Stylists deliver a look sheet tuned to skin tone and occasion, synced with fragrance notes and fabric texture archives.",
+    "bullets": [
+      "Remote styling session · 45 minutes",
+      "Fabric tactile archive + scent kit delivery",
+      "Sketch in 72 hours, first fitting in 14 days"
+    ],
+    "badge": "By Appointment Only",
+    "formTitle": "Schedule your fitting",
+    "formCopy": "Tell us your city and preferred date; the atelier will arrange the nearest White Phantom salon.",
+    "form": {
+      "city": "City",
+      "date": "Date",
+      "placeholder": "Shanghai / Paris",
+      "submit": "Submit request"
+    }
+  },
+  "gallery": {
+    "eyebrow": "THE GALLERY",
+    "title": "Vernissage · White Halo Showcase",
+    "lede": "The asymmetric bento grid splits gowns, couture accessories, and material close-ups. Each card floats on the “atelier haze” with a 1px linear frame, revealing high-key highlights.",
+    "cards": {
+      "halo": {
+        "caption": "LOOK 01 · STRUCTURE",
+        "title": "Architected Halo",
+        "desc": "3D corsetry · Hidden boning"
+      },
+      "pleated": {
+        "caption": "MATERIAL LAB",
+        "title": "Hand Pleated Silk",
+        "desc": "Perforated voile"
+      },
+      "flow": {
+        "caption": "VERNISSAGE NOTES",
+        "title": "Gallery Flow",
+        "copy": "Enter to a central hero gown; material lab sits to the right, curated lookbooks to the left. Soundscape and lighting are layered with a sub-72dB breathing rhythm.",
+        "tag": "LINEAR LUXURY"
+      },
+      "detail": {
+        "caption": "DETAIL",
+        "title": "Paillette Clouds"
+      }
+    }
+  }
+}

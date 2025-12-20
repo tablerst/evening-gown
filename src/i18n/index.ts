@@ -2,7 +2,14 @@ import { createI18n } from 'vue-i18n'
 
 import { appEnv } from '@/config/env'
 import type { SupportedLocale } from './messages'
-import { messages } from './messages'
+
+import en from './locales/en.json'
+import zh from './locales/zh.json'
+
+const messages = {
+    en,
+    zh,
+} satisfies Record<SupportedLocale, Record<string, unknown>>
 
 const SUPPORTED_LOCALES = ['zh', 'en'] as const satisfies SupportedLocale[]
 const STORAGE_KEY = 'evening-gowm-locale'
