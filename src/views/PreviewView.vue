@@ -13,21 +13,21 @@ import logoUrl from '@/assets/logo.webp'
 
         <!-- 3. Main Card: The White Archive Document -->
         <div
-            class="relative z-20 bg-white border border-brand shadow-[8px_8px_0px_#000226] flex flex-col items-center p-12 w-[480px] select-none">
+            class="relative z-20 bg-white border border-brand shadow-[4px_4px_0px_#000226] md:shadow-[8px_8px_0px_#000226] flex flex-col items-center p-6 md:p-12 w-[90%] max-w-[480px] select-none">
             <!-- Header Specs -->
-            <div class="w-full flex justify-between items-center mb-8 border-b border-slate pb-4">
+            <div class="w-full flex justify-between items-center mb-6 md:mb-8 border-b border-slate pb-4">
                 <span class="font-mono text-[10px] text-gray-400 tracking-wider">REF: 2025-ARCHIVE</span>
                 <span class="font-mono text-[10px] text-brand font-bold tracking-wider">SECURE GATEWAY</span>
             </div>
 
             <!-- Logo (Inverted for White Background) -->
-            <div class="mb-10 mt-4">
-                <img :src="logoUrl" alt="FLEURLIS" class="w-72 invert opacity-90" />
+            <div class="mb-8 md:mb-10 mt-4">
+                <img :src="logoUrl" alt="FLEURLIS" class="w-56 md:w-72 invert opacity-90" />
             </div>
 
             <!-- Slogan / Identity -->
-            <div class="text-center mb-12 space-y-3">
-                <h2 class="font-display text-xl tracking-widest text-brand uppercase whitespace-nowrap">
+            <div class="text-center mb-8 md:mb-12 space-y-3">
+                <h2 class="font-display text-base md:text-xl tracking-widest text-brand uppercase whitespace-nowrap">
                     Design-Production-Sales</h2>
                 <p class="font-sans text-[10px] tracking-[0.3em] text-gray-500 uppercase font-medium">
                     Est. 2017 · Full Process Supported
