@@ -47,11 +47,43 @@
   "product": {
     "title": "New Arrivals",
     "total": "TOTAL: {count}",
-    "filter": "FILTER: ALL",
-    "sort": "SORT: DATE",
+    "filter": "FILTER",
+    "sort": "SORT",
     "style": "STYLE #{id}",
     "login": "LOGIN FOR PRICE",
-    "add": "Add to list"
+    "add": "Add to list",
+    "prev": "Prev",
+    "next": "Next",
+    "page": "PAGE",
+    "pageSize": "PER PAGE",
+    "pageSizeOption": "PER PAGE {count}",
+    "badge": {
+      "new": "NEW"
+    },
+    "filters": {
+      "category": {
+        "all": "ALL",
+        "gown": "GOWN",
+        "couture": "COUTURE",
+        "bridal": "BRIDAL"
+      },
+      "season": {
+        "all": "ALL",
+        "ss25": "SS25",
+        "fw25": "FW25"
+      },
+      "availability": {
+        "all": "ALL",
+        "in_stock": "IN STOCK",
+        "preorder": "PREORDER",
+        "archived": "ARCHIVED"
+      }
+    },
+    "sortOptions": {
+      "newest": "NEWEST",
+      "style_asc": "STYLE ↑",
+      "style_desc": "STYLE ↓"
+    }
   },
   "info": {
     "designerTitle": "Designer's Note",

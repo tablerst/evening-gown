@@ -47,11 +47,43 @@
   "product": {
     "title": "上新款式",
     "total": "总计：{count}",
-    "filter": "筛选：全部",
-    "sort": "排序：日期",
+    "filter": "筛选",
+    "sort": "排序",
     "style": "款号 #{id}",
     "login": "登录查看价格",
-    "add": "加入清单"
+    "add": "加入清单",
+    "prev": "上一页",
+    "next": "下一页",
+    "page": "页",
+    "pageSize": "每页",
+    "pageSizeOption": "每页 {count}",
+    "badge": {
+      "new": "NEW"
+    },
+    "filters": {
+      "category": {
+        "all": "全部",
+        "gown": "礼服",
+        "couture": "高定",
+        "bridal": "婚纱"
+      },
+      "season": {
+        "all": "全部",
+        "ss25": "SS25",
+        "fw25": "FW25"
+      },
+      "availability": {
+        "all": "全部",
+        "in_stock": "现货",
+        "preorder": "预售",
+        "archived": "归档"
+      }
+    },
+    "sortOptions": {
+      "newest": "最新",
+      "style_asc": "款号 ↑",
+      "style_desc": "款号 ↓"
+    }
   },
   "info": {
     "designerTitle": "设计师手记",
