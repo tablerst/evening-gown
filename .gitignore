@@ -1,10 +1,2 @@
-/.idea/codeStyles/codeStyleConfig.xml
-/.idea/codeStyles/Project.xml
-/.idea/inspectionProfiles/Project_Default.xml
-/.idea/.gitignore
-/.idea/copilot.data.migration.agent.xml
-/.idea/evening-gowm.iml
-/.idea/modules.xml
-/.idea/prettier.xml
-/.idea/vcs.xml
+/.idea/*
 /.vscode/settings.json
