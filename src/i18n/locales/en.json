@@ -34,7 +34,6 @@
     "leadTime": "PRODUCTION LEAD TIME: 14 DAYS ·"
   },
   "updates": {
-    "eyebrow": "COMPANY BULLETIN",
     "title": "Latest Updates",
     "cta": "VIEW ALL ->",
     "note": "Hardcoded feed for now. Will be backed by a service later."

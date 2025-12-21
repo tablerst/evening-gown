@@ -72,18 +72,16 @@ const updates = computed<UpdateItem[]>(() => {
         <TickerSection />
 
         <div class="px-4 md:px-8 py-10">
-            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-black pb-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-black pb-4">
                 <div>
-                    <div class="font-mono text-xs tracking-[0.35em] uppercase text-black/60">
-                        {{ t('updates.eyebrow') }}
-                    </div>
-                    <h2 class="mt-3 font-sans font-bold uppercase tracking-[0.28em] text-brand text-xl md:text-2xl">
+                    <h2
+                        class="font-sans font-bold uppercase tracking-[0.28em] text-brand text-xl md:text-2xl leading-none">
                         {{ t('updates.title') }}
                     </h2>
                 </div>
 
                 <a href="#"
-                    class="font-mono text-xs uppercase tracking-[0.3em] text-brand border border-brand px-4 py-3 hover:bg-brand hover:text-white transition-none self-start md:self-auto">
+                    class="inline-flex items-center font-mono text-xs uppercase tracking-[0.3em] leading-none text-brand border border-brand px-4 py-3 hover:bg-brand hover:text-white transition-none self-start md:self-auto">
                     {{ t('updates.cta') }}
                 </a>
             </div>
