@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n'
 
 import bgUrl from '@/assets/bg.webp'
-import logoUrl from '@/assets/logo.webp'
+import logoUrl from '@/assets/logo.svg'
 
 const { t } = useI18n()
 </script>
@@ -22,7 +22,7 @@ const { t } = useI18n()
             <div class="w-full flex justify-between items-center mb-6 md:mb-8 border-b border-slate pb-4">
                 <span class="font-mono text-[10px] text-gray-400 tracking-wider">{{ t('preview.ref') }}</span>
                 <span class="font-mono text-[10px] text-brand font-bold tracking-wider">{{ t('preview.security')
-                    }}</span>
+                }}</span>
             </div>
 
             <!-- Logo (Inverted for White Background) -->

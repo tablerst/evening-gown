@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { setLocale } from '@/i18n'
-import logo from '@/assets/logo.webp'
+import logo from '@/assets/logo.svg'
 
 const isNavCompacted = ref(false)
 
@@ -42,8 +42,13 @@ const toggleLocale = () => {
             'lens-nav fixed top-0 w-full z-50 px-6 md:px-10 flex justify-between items-center transition-all duration-300',
             isNavCompacted ? 'py-3 lens-nav--compact' : 'py-5'
         ]">
-            <RouterLink :to="{ name: 'home' }" class="lens-nav__brand">
-                <img :src="logo" :alt="t('nav.brandLine1')" class="h-32 w-auto brightness-0 -my-16" />
+            <RouterLink :to="{ name: 'home' }" :class="[
+                'lens-nav__brandTag',
+                isNavCompacted ? 'lens-nav__brandTag--compact' : 'lens-nav__brandTag--relaxed',
+            ]">
+                <span class="lens-nav__brandLogoCrop">
+                    <img :src="logo" :alt="t('nav.brandLine1')" class="lens-nav__brandLogo" />
+                </span>
             </RouterLink>
             <div class="lens-nav__links">
                 <RouterLink :to="{ name: 'home', hash: '#process' }" class="nav-link">{{ t('nav.links.process') }}
