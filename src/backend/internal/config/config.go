@@ -20,6 +20,25 @@ type Config struct {
 	Redis    RedisConfig
 	Minio    MinioConfig
 	JWT      JWTConfig
+	Admin    AdminConfig
+	Dev      DevConfig
+}
+
+// AdminConfig controls bootstrap and login for the single super admin.
+//
+// Notes:
+// - ADMIN_PASSWORD is only used for bootstrapping when no admin exists yet.
+// - Do NOT put real credentials into git.
+type AdminConfig struct {
+	Email    string
+	Password string
+}
+
+// DevConfig contains development-only toggles.
+type DevConfig struct {
+	// EnableDevTokenIssuer keeps legacy /auth/token endpoint enabled.
+	// It is unsafe for production.
+	EnableDevTokenIssuer bool
 }
 
 // AppConfig controls HTTP server settings.
@@ -108,6 +127,13 @@ func Load() (Config, error) {
 			Issuer:    getEnv("JWT_ISSUER", "evening-gown"),
 			Audience:  getEnv("JWT_AUDIENCE", ""),
 			ExpiresIn: getDurationEnv("JWT_EXPIRES_IN", 24*time.Hour),
+		},
+		Admin: AdminConfig{
+			Email:    getEnv("ADMIN_EMAIL", ""),
+			Password: getEnv("ADMIN_PASSWORD", ""),
+		},
+		Dev: DevConfig{
+			EnableDevTokenIssuer: getBoolEnv("ENABLE_DEV_TOKEN_ISSUER", false),
 		},
 	}
 

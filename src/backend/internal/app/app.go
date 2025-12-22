@@ -10,11 +10,16 @@ import (
 	"syscall"
 	"time"
 
+	jwtauth "evening-gown/internal/auth"
+	"evening-gown/internal/bootstrap"
 	"evening-gown/internal/cache"
 	"evening-gown/internal/config"
 	"evening-gown/internal/database"
-	"evening-gown/internal/handler/auth"
+	adminHandlers "evening-gown/internal/handler/admin"
+	authHandlerPkg "evening-gown/internal/handler/auth"
 	"evening-gown/internal/handler/health"
+	publicHandlers "evening-gown/internal/handler/public"
+	"evening-gown/internal/middleware"
 	"evening-gown/internal/router"
 	"evening-gown/internal/storage"
 
@@ -47,6 +52,17 @@ func Run() error {
 		log.Println("postgres disabled: POSTGRES_DSN not set")
 	}
 
+	// JWT service (shared by admin auth middleware).
+	var jwtSvc *jwtauth.Service
+	if cfg.JWT.Secret != "" {
+		jwtSvc, err = jwtauth.New(cfg.JWT)
+		if err != nil {
+			return err
+		}
+	} else {
+		log.Println("jwt disabled: JWT_SECRET not set")
+	}
+
 	var redisClient *redis.Client
 	if cfg.Redis.Addr != "" {
 		redisClient, err = cache.NewClient(ctx, cfg.Redis)
@@ -70,15 +86,41 @@ func Run() error {
 		log.Println("minio disabled: MINIO_ENDPOINT not set")
 	}
 
-	var authHandler *auth.Handler
+	// Legacy auth handler (dev-only token issuer / verify helper).
+	var authHandler *authHandlerPkg.Handler
 	if cfg.JWT.Secret != "" {
-		authHandler = auth.New(cfg.JWT)
-	} else {
-		log.Println("jwt disabled: JWT_SECRET not set")
+		authHandler = authHandlerPkg.New(cfg.JWT)
 	}
 
 	healthHandler := health.New(db, redisClient, minioClient)
-	r := router.New(router.Dependencies{Health: healthHandler, Auth: authHandler})
+
+	deps := router.Dependencies{Health: healthHandler, Auth: authHandler, EnableDevTokenIssuer: cfg.Dev.EnableDevTokenIssuer}
+
+	// Business APIs require Postgres.
+	if db != nil {
+		if err := bootstrap.AutoMigrate(db); err != nil {
+			return err
+		}
+		if err := bootstrap.EnsureSingleAdmin(db, cfg.Admin.Email, cfg.Admin.Password); err != nil {
+			return err
+		}
+
+		deps.Public.Products = publicHandlers.NewProductsHandler(db)
+		deps.Public.Updates = publicHandlers.NewUpdatesHandler(db)
+		deps.Public.Contacts = publicHandlers.NewContactsHandler(db)
+		deps.Public.Events = publicHandlers.NewEventsHandler(db)
+
+		deps.Admin.Auth = adminHandlers.NewAuthHandler(db, jwtSvc)
+		deps.Admin.Products = adminHandlers.NewProductsHandler(db)
+		deps.Admin.Updates = adminHandlers.NewUpdatesHandler(db)
+		deps.Admin.Contacts = adminHandlers.NewContactsHandler(db)
+		deps.Admin.Events = adminHandlers.NewEventsHandler(db)
+		deps.Admin.AuthMiddleware = middleware.AdminAuth(db, jwtSvc)
+	} else {
+		log.Println("business APIs disabled: postgres not configured")
+	}
+
+	r := router.New(deps)
 
 	srv := &http.Server{
 		Addr:    cfg.App.Addr(),

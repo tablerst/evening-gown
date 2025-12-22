@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
+
+import { httpGet } from '@/api/http'
 
 const { t, te } = useI18n()
+const router = useRouter()
 
 type Availability = 'in_stock' | 'preorder' | 'archived'
 type Season = 'ss25' | 'fw25'
@@ -31,30 +35,18 @@ type Product = {
     isNew: boolean
 }
 
-// 占位数据（硬编码）：后续可替换为真实商品/库存接口
-const products = ref<Product[]>(
-    Array.from({ length: 42 }, (_, idx) => {
-        const id = idx + 1
-        const styleNo = 2000 + id
-        const season: Product['season'] = id % 2 === 0 ? 'fw25' : 'ss25'
-        const category: Product['category'] = id % 3 === 0 ? 'couture' : id % 3 === 1 ? 'gown' : 'bridal'
-        const availability: Availability = id % 9 === 0 ? 'archived' : id % 4 === 0 ? 'preorder' : 'in_stock'
-        const isNew = id % 7 === 0
+const products = ref<Product[]>([])
+const productsError = ref('')
 
-        return {
-            id,
-            styleNo,
-            season,
-            category,
-            availability,
-            isNew,
-            coverImage:
-                'https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=1200&auto=format&fit=crop',
-            hoverImage:
-                'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?q=80&w=1200&auto=format&fit=crop',
-        }
-    })
-)
+onMounted(async () => {
+    productsError.value = ''
+    try {
+        const res = await httpGet<{ items: Product[] }>('/api/v1/products?limit=200')
+        products.value = res.items ?? []
+    } catch {
+        productsError.value = '商品加载失败'
+    }
+})
 
 // 端适配：参考 Seasonal 的密度（PC 5 列 / 手机 3 列）
 const isDesktop = ref(false)
@@ -215,6 +207,10 @@ const pageSizeOptionText = (n: number) => {
 }
 
 const newBadgeText = computed(() => (te('product.badge.new') ? t('product.badge.new') : 'NEW'))
+
+const goDetail = (id: number) => {
+    router.push({ name: 'product-detail', params: { id } })
+}
 </script>
 
 <template>
@@ -229,6 +225,7 @@ const newBadgeText = computed(() => (te('product.badge.new') ? t('product.badge.
                         <span class="uppercase tracking-wider">{{ t('product.sort') }}</span>
                         <span class="uppercase tracking-wider">{{ pageLabel }} {{ currentPage }}/{{ totalPages }}</span>
                     </div>
+                    <p v-if="productsError" class="mt-3 font-mono text-xs text-red-600">{{ productsError }}</p>
                 </div>
 
                 <!-- Controls: 极简、硬切、三色体系 -->
@@ -279,7 +276,8 @@ const newBadgeText = computed(() => (te('product.badge.new') ? t('product.badge.
 
         <div ref="gridEl" class="px-4 md:px-8" :style="gridStyle">
             <div class="product-grid">
-                <div v-for="p in pagedProducts" :key="p.id" class="product-card group cursor-pointer">
+                <div v-for="p in pagedProducts" :key="p.id" class="product-card group cursor-pointer"
+                    @click="goDetail(p.id)">
                     <div class="relative aspect-[3/5] overflow-hidden border border-border bg-white">
                         <!-- Default Image -->
                         <img :src="p.coverImage"
@@ -299,9 +297,9 @@ const newBadgeText = computed(() => (te('product.badge.new') ? t('product.badge.
                             <div class="flex flex-col min-w-0">
                                 <div class="flex items-center gap-2">
                                     <span class="font-bold text-black truncate">{{ t('product.style', { id: p.styleNo })
-                                        }}</span>
+                                    }}</span>
                                     <span v-if="p.isNew" class="text-brand uppercase tracking-wider">{{ newBadgeText
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div class="mt-1 flex items-center gap-3 text-gray-500">
                                     <span class="text-black">{{ labelSeason(p.season) }}</span>
@@ -312,7 +310,7 @@ const newBadgeText = computed(() => (te('product.badge.new') ? t('product.badge.
                             </div>
                             <button
                                 class="w-8 h-8 border border-black flex items-center justify-center hover:bg-brand hover:text-white transition-none text-lg"
-                                :aria-label="t('product.add')">
+                                :aria-label="t('product.add')" @click.stop>
                                 +
                             </button>
                         </div>

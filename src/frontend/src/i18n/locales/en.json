@@ -7,9 +7,9 @@
       "brief": "Brief",
       "seasonal": "Seasonal",
       "catalog": "Catalog",
-      "appointment": "Appointment"
+      "appointment": "Contact"
     },
-    "cta": "Book Private Salon",
+    "cta": "Contact",
     "language": {
       "toggle": "Language",
       "zh": "中文",
@@ -36,7 +36,7 @@
   "updates": {
     "title": "Latest Updates",
     "cta": "VIEW ALL ->",
-    "note": "Hardcoded feed for now. Will be backed by a service later."
+    "note": "Backoffice-managed feed (company updates)."
   },
   "seasonal": {
     "title": "Seasonal Collection",
@@ -50,7 +50,7 @@
     "filter": "FILTER",
     "sort": "SORT",
     "style": "STYLE #{id}",
-    "login": "LOGIN FOR PRICE",
+    "login": "PRICE ON REQUEST",
     "add": "Add to list",
     "prev": "Prev",
     "next": "Next",
@@ -85,13 +85,33 @@
       "style_desc": "STYLE ↓"
     }
   },
+  "productDetail": {
+    "back": "Back",
+    "loading": "Loading…",
+    "error": "Failed to load",
+    "generatePoster": "Generate poster",
+    "downloadPoster": "Download poster",
+    "posterTitle": "Poster",
+    "posterError": "Poster generation failed (image CORS)"
+  },
   "info": {
     "designerTitle": "Designer's Note",
     "designerBody": "Finding order in midnight geometry. We believe true luxury is not about accumulation, but extreme restraint of lines. Each gown is a micro-architecture, built upon the body, constructing absolute rational beauty with silk and light. We strip away all noise to present the purest structural tension.",
     "designerSign": "- Chief Director",
-    "appointmentTitle": "Appointment",
-    "appointmentBody": "Visit our showroom to feel the fabric quality. We offer private viewing sessions for wholesale partners.",
-    "appointmentCta": "Book Visit",
+    "appointmentTitle": "Contact",
+    "appointmentBody": "Tell us what you need (wholesale/custom/delivery). We'll get back to you shortly.",
+    "appointmentCta": "Send inquiry",
+    "contactForm": {
+      "name": "Name",
+      "phone": "Phone",
+      "wechat": "WeChat",
+      "message": "Message",
+      "submit": "Send",
+      "submitting": "Sending…",
+      "success": "Received. We'll contact you soon.",
+      "error": "Submit failed. Please try again later.",
+      "close": "Close"
+    },
     "gisTitle": "Global Coordinates",
     "gisLocation": "Suzhou · CN",
     "gisCoordinates": "31.2989° N, 120.5853° E",

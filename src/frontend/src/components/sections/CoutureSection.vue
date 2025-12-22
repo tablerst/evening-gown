@@ -25,7 +25,7 @@ const bullets = computed(() => tm('couture.bullets') as string[])
                         <li v-for="item in bullets" :key="item">{{ item }}</li>
                     </ul>
                 </div>
-                <div class="couture-panel project-item" id="contact">
+                <div class="couture-panel project-item">
                     <div class="couture-panel__badge">{{ t('couture.badge') }}</div>
                     <h3 class="text-xl font-serif mb-3">{{ t('couture.formTitle') }}</h3>
                     <p class="text-sm text-stone leading-relaxed">

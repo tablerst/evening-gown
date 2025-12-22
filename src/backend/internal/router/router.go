@@ -9,14 +9,38 @@ import (
 	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 
+	adminHandlers "evening-gown/internal/handler/admin"
 	"evening-gown/internal/handler/auth"
 	"evening-gown/internal/handler/health"
+	publicHandlers "evening-gown/internal/handler/public"
 )
 
 // Dependencies groups handlers required by the router.
 type Dependencies struct {
 	Health *health.Handler
 	Auth   *auth.Handler
+
+	// Dev toggles
+	EnableDevTokenIssuer bool
+
+	// Public website APIs (no auth)
+	Public struct {
+		Products *publicHandlers.ProductsHandler
+		Updates  *publicHandlers.UpdatesHandler
+		Contacts *publicHandlers.ContactsHandler
+		Events   *publicHandlers.EventsHandler
+	}
+
+	// Admin backoffice APIs (JWT-protected)
+	Admin struct {
+		Auth     *adminHandlers.AuthHandler
+		Products *adminHandlers.ProductsHandler
+		Updates  *adminHandlers.UpdatesHandler
+		Contacts *adminHandlers.ContactsHandler
+		Events   *adminHandlers.EventsHandler
+		// Middleware applied to protected admin routes.
+		AuthMiddleware gin.HandlerFunc
+	}
 }
 
 // New builds a gin.Engine with common middleware and routes.
@@ -58,8 +82,68 @@ func New(deps Dependencies) *gin.Engine {
 
 	if deps.Auth != nil {
 		authGroup := r.Group("/auth")
-		authGroup.POST("/token", deps.Auth.IssueToken)
+		// Legacy dev-only endpoint (UNSAFE): issues tokens for arbitrary subjects.
+		if deps.EnableDevTokenIssuer {
+			authGroup.POST("/token", deps.Auth.IssueToken)
+		}
 		authGroup.GET("/verify", deps.Auth.VerifyToken)
+	}
+
+	// Public website APIs (no auth)
+	if deps.Public.Products != nil || deps.Public.Updates != nil || deps.Public.Contacts != nil || deps.Public.Events != nil {
+		api := r.Group("/api/v1")
+		if deps.Public.Products != nil {
+			api.GET("/products", deps.Public.Products.List)
+			api.GET("/products/:id", deps.Public.Products.Get)
+		}
+		if deps.Public.Updates != nil {
+			api.GET("/updates", deps.Public.Updates.List)
+			api.GET("/updates/:id", deps.Public.Updates.Get)
+		}
+		if deps.Public.Contacts != nil {
+			api.POST("/contacts", deps.Public.Contacts.Create)
+		}
+		if deps.Public.Events != nil {
+			api.POST("/events", deps.Public.Events.Create)
+		}
+	}
+
+	// Admin backoffice APIs (JWT-protected)
+	if deps.Admin.Auth != nil || deps.Admin.Products != nil || deps.Admin.Updates != nil || deps.Admin.Contacts != nil || deps.Admin.Events != nil {
+		admin := r.Group("/api/v1/admin")
+		if deps.Admin.Auth != nil {
+			// Login is unprotected.
+			admin.POST("/auth/login", deps.Admin.Auth.Login)
+		}
+		// Protected admin routes.
+		if deps.Admin.AuthMiddleware != nil {
+			admin.Use(deps.Admin.AuthMiddleware)
+		}
+		if deps.Admin.Auth != nil {
+			admin.GET("/me", deps.Admin.Auth.Me)
+		}
+		if deps.Admin.Products != nil {
+			admin.GET("/products", deps.Admin.Products.List)
+			admin.POST("/products", deps.Admin.Products.Create)
+			admin.GET("/products/:id", deps.Admin.Products.Get)
+			admin.PATCH("/products/:id", deps.Admin.Products.Update)
+			admin.POST("/products/:id/publish", deps.Admin.Products.Publish)
+			admin.POST("/products/:id/unpublish", deps.Admin.Products.Unpublish)
+		}
+		if deps.Admin.Updates != nil {
+			admin.GET("/updates", deps.Admin.Updates.List)
+			admin.POST("/updates", deps.Admin.Updates.Create)
+			admin.GET("/updates/:id", deps.Admin.Updates.Get)
+			admin.PATCH("/updates/:id", deps.Admin.Updates.Update)
+			admin.POST("/updates/:id/publish", deps.Admin.Updates.Publish)
+		}
+		if deps.Admin.Contacts != nil {
+			admin.GET("/contacts", deps.Admin.Contacts.List)
+			admin.PATCH("/contacts/:id", deps.Admin.Contacts.Update)
+		}
+		if deps.Admin.Events != nil {
+			admin.GET("/events", deps.Admin.Events.List)
+		}
 	}
 
 	return r

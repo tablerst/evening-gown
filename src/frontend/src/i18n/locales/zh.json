@@ -7,9 +7,9 @@
       "brief": "公司资讯",
       "seasonal": "当季系列",
       "catalog": "新品目录",
-      "appointment": "预约到访"
+      "appointment": "联系我们"
     },
-    "cta": "预约私享厅",
+    "cta": "联系我们",
     "language": {
       "toggle": "语言",
       "zh": "中文",
@@ -36,7 +36,7 @@
   "updates": {
     "title": "最新动态",
     "cta": "查看全部 ->",
-    "note": "当前为前端硬编码，后续将由后台服务提供数据。"
+    "note": "由后台发布（公司重要动态）。"
   },
   "seasonal": {
     "title": "当季系列",
@@ -50,7 +50,7 @@
     "filter": "筛选",
     "sort": "排序",
     "style": "款号 #{id}",
-    "login": "登录查看价格",
+    "login": "价格面议",
     "add": "加入清单",
     "prev": "上一页",
     "next": "下一页",
@@ -85,13 +85,33 @@
       "style_desc": "款号 ↓"
     }
   },
+  "productDetail": {
+    "back": "返回",
+    "loading": "加载中…",
+    "error": "加载失败",
+    "generatePoster": "生成分享海报",
+    "downloadPoster": "下载海报",
+    "posterTitle": "分享海报",
+    "posterError": "海报生成失败（可能是图片跨域限制）"
+  },
   "info": {
     "designerTitle": "设计师手记",
     "designerBody": "在午夜的几何中寻找秩序。我们相信，真正的奢华不是繁复的堆砌，而是对线条的极致克制。每一件礼服都是一座微型建筑，以身体为地基，用丝绸与光影构建出绝对的理性之美。我们剔除一切干扰，只为呈现最纯粹的结构张力。",
     "designerSign": "- 创意总监",
-    "appointmentTitle": "预约到访",
-    "appointmentBody": "欢迎到展厅亲手触摸面料。我们为批发伙伴提供私享场次。",
-    "appointmentCta": "预约参观",
+    "appointmentTitle": "联系我们",
+    "appointmentBody": "告诉我们你的需求（批发/定制/交付）。我们会尽快与您联系。",
+    "appointmentCta": "提交咨询",
+    "contactForm": {
+      "name": "姓名",
+      "phone": "电话",
+      "wechat": "微信",
+      "message": "需求描述",
+      "submit": "发送",
+      "submitting": "发送中…",
+      "success": "已收到，我们会尽快联系您。",
+      "error": "提交失败，请稍后重试。",
+      "close": "收起表单"
+    },
     "gisTitle": "全球坐标",
     "gisLocation": "中国 · 苏州",
     "gisCoordinates": "31.2989° N, 120.5853° E",
