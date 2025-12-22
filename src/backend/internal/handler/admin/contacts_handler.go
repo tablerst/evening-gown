@@ -57,6 +57,27 @@ func (h *ContactsHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"total": total, "items": items})
 }
 
+func (h *ContactsHandler) Get(c *gin.Context) {
+	if h == nil || h.db == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service unavailable"})
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var lead model.ContactLead
+	if err := h.db.WithContext(c.Request.Context()).First(&lead, uint(id)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, lead)
+}
+
 type contactUpdateRequest struct {
 	Status string `json:"status" binding:"required"` // new|contacted|closed
 }
@@ -95,4 +116,29 @@ func (h *ContactsHandler) Update(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, lead)
+}
+
+func (h *ContactsHandler) Delete(c *gin.Context) {
+	if h == nil || h.db == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service unavailable"})
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	res := h.db.WithContext(c.Request.Context()).Delete(&model.ContactLead{}, uint(id))
+	if res.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": res.Error.Error()})
+		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

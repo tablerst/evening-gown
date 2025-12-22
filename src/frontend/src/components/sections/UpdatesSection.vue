@@ -47,10 +47,10 @@ onMounted(async () => {
                     </h2>
                 </div>
 
-                <a href="#"
+                <router-link :to="{ name: 'updates' }"
                     class="inline-flex items-center font-mono text-xs uppercase tracking-[0.3em] leading-none text-brand border border-brand px-4 py-3 hover:bg-brand hover:text-white transition-none self-start md:self-auto">
                     {{ t('updates.cta') }}
-                </a>
+                </router-link>
             </div>
 
             <div class="mt-6 border border-border">

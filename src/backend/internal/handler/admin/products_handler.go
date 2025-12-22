@@ -21,7 +21,8 @@ func NewProductsHandler(db *gorm.DB) *ProductsHandler {
 	return &ProductsHandler{db: db}
 }
 
-type productUpsertRequest struct {
+
+type productCreateRequest struct {
 	Slug         string `json:"slug"`
 	StyleNo      int    `json:"styleNo" binding:"required"`
 	Season       string `json:"season" binding:"required"`
@@ -36,13 +37,29 @@ type productUpsertRequest struct {
 	Detail json.RawMessage `json:"detail"`
 }
 
+type productUpdateRequest struct {
+	Slug         *string `json:"slug"`
+	StyleNo      *int    `json:"styleNo"`
+	Season       *string `json:"season"`
+	Category     *string `json:"category"`
+	Availability *string `json:"availability"`
+	IsNew        *bool   `json:"isNew"`
+	NewRank      *int    `json:"newRank"`
+
+	CoverImageURL *string `json:"coverImage"`
+	HoverImageURL *string `json:"hoverImage"`
+
+	Detail *json.RawMessage `json:"detail"`
+}
+
 func (h *ProductsHandler) List(c *gin.Context) {
 	if h == nil || h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service unavailable"})
 		return
 	}
 
-	q := h.db.WithContext(c.Request.Context()).Model(&model.Product{})
+	q := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
+		Where("deleted_at IS NULL")
 
 	if status := strings.TrimSpace(c.Query("status")); status != "" {
 		if status == "published" {
@@ -101,7 +118,7 @@ func (h *ProductsHandler) Create(c *gin.Context) {
 		return
 	}
 
-	var req productUpsertRequest
+	var req productCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -156,7 +173,9 @@ func (h *ProductsHandler) Get(c *gin.Context) {
 	}
 
 	var p model.Product
-	if err := h.db.WithContext(c.Request.Context()).First(&p, uint(id)).Error; err != nil {
+	if err := h.db.WithContext(c.Request.Context()).
+		Where("deleted_at IS NULL").
+		First(&p, uint(id)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
@@ -176,27 +195,37 @@ func (h *ProductsHandler) Update(c *gin.Context) {
 		return
 	}
 
-	var req productUpsertRequest
+	var req productUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	updates := map[string]any{}
-	if s := strings.TrimSpace(req.Slug); s != "" {
-		updates["slug"] = s
+	if req.Slug != nil {
+		if s := strings.TrimSpace(*req.Slug); s != "" {
+			updates["slug"] = s
+		}
 	}
-	if req.StyleNo != 0 {
-		updates["style_no"] = req.StyleNo
+	if req.StyleNo != nil {
+		if *req.StyleNo != 0 {
+			updates["style_no"] = *req.StyleNo
+		}
 	}
-	if s := strings.TrimSpace(req.Season); s != "" {
-		updates["season"] = s
+	if req.Season != nil {
+		if s := strings.TrimSpace(*req.Season); s != "" {
+			updates["season"] = s
+		}
 	}
-	if s := strings.TrimSpace(req.Category); s != "" {
-		updates["category"] = s
+	if req.Category != nil {
+		if s := strings.TrimSpace(*req.Category); s != "" {
+			updates["category"] = s
+		}
 	}
-	if s := strings.TrimSpace(req.Availability); s != "" {
-		updates["availability"] = s
+	if req.Availability != nil {
+		if s := strings.TrimSpace(*req.Availability); s != "" {
+			updates["availability"] = s
+		}
 	}
 	if req.IsNew != nil {
 		updates["is_new"] = *req.IsNew
@@ -204,14 +233,18 @@ func (h *ProductsHandler) Update(c *gin.Context) {
 	if req.NewRank != nil {
 		updates["new_rank"] = *req.NewRank
 	}
-	if s := strings.TrimSpace(req.CoverImageURL); s != "" {
-		updates["cover_image_url"] = s
+	if req.CoverImageURL != nil {
+		if s := strings.TrimSpace(*req.CoverImageURL); s != "" {
+			updates["cover_image_url"] = s
+		}
 	}
-	if s := strings.TrimSpace(req.HoverImageURL); s != "" {
-		updates["hover_image_url"] = s
+	if req.HoverImageURL != nil {
+		if s := strings.TrimSpace(*req.HoverImageURL); s != "" {
+			updates["hover_image_url"] = s
+		}
 	}
 	if req.Detail != nil {
-		updates["detail_json"] = req.Detail
+		updates["detail_json"] = *req.Detail
 	}
 
 	if len(updates) == 0 {
@@ -219,7 +252,10 @@ func (h *ProductsHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).Where("id = ?", uint(id)).Updates(updates).Error; err != nil {
+	if err := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		Updates(updates).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -240,7 +276,10 @@ func (h *ProductsHandler) Publish(c *gin.Context) {
 	}
 
 	now := time.Now().UTC()
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).Where("id = ?", uint(id)).Update("published_at", &now).Error; err != nil {
+	if err := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		Update("published_at", &now).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -260,7 +299,10 @@ func (h *ProductsHandler) Unpublish(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).Where("id = ?", uint(id)).Update("published_at", nil).Error; err != nil {
+	if err := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		Update("published_at", nil).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -278,4 +320,33 @@ func parseIntQuery(c *gin.Context, key string, fallback int) int {
 		return fallback
 	}
 	return v
+}
+
+func (h *ProductsHandler) Delete(c *gin.Context) {
+	if h == nil || h.db == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service unavailable"})
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	now := time.Now().UTC()
+	res := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		Update("deleted_at", &now)
+	if res.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": res.Error.Error()})
+		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

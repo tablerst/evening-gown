@@ -3,6 +3,7 @@ package router
 import (
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/pprof"
@@ -57,7 +58,16 @@ func New(deps Dependencies) *gin.Engine {
 	// Example: https://example.com,https://admin.example.com
 	allowOrigins := splitCommaEnv("CORS_ALLOW_ORIGINS")
 	if len(allowOrigins) == 0 {
-		r.Use(cors.Default())
+		// Be explicit instead of relying on cors.Default() so behavior remains stable
+		// across gin-contrib/cors versions.
+		cfg := cors.Config{
+			AllowAllOrigins: true,
+			AllowMethods:    []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+			AllowHeaders:    []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-Id"},
+			ExposeHeaders:   []string{"X-Request-Id"},
+			MaxAge:          12 * time.Hour,
+		}
+		r.Use(cors.New(cfg))
 	} else {
 		cfg := cors.Config{
 			AllowOrigins:     allowOrigins,
@@ -65,6 +75,7 @@ func New(deps Dependencies) *gin.Engine {
 			AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-Id"},
 			ExposeHeaders:    []string{"X-Request-Id"},
 			AllowCredentials: true,
+			MaxAge:           12 * time.Hour,
 		}
 		r.Use(cors.New(cfg))
 	}
@@ -129,6 +140,7 @@ func New(deps Dependencies) *gin.Engine {
 			admin.PATCH("/products/:id", deps.Admin.Products.Update)
 			admin.POST("/products/:id/publish", deps.Admin.Products.Publish)
 			admin.POST("/products/:id/unpublish", deps.Admin.Products.Unpublish)
+			admin.DELETE("/products/:id", deps.Admin.Products.Delete)
 		}
 		if deps.Admin.Updates != nil {
 			admin.GET("/updates", deps.Admin.Updates.List)
@@ -136,13 +148,19 @@ func New(deps Dependencies) *gin.Engine {
 			admin.GET("/updates/:id", deps.Admin.Updates.Get)
 			admin.PATCH("/updates/:id", deps.Admin.Updates.Update)
 			admin.POST("/updates/:id/publish", deps.Admin.Updates.Publish)
+			admin.POST("/updates/:id/unpublish", deps.Admin.Updates.Unpublish)
+			admin.DELETE("/updates/:id", deps.Admin.Updates.Delete)
 		}
 		if deps.Admin.Contacts != nil {
 			admin.GET("/contacts", deps.Admin.Contacts.List)
+			admin.GET("/contacts/:id", deps.Admin.Contacts.Get)
 			admin.PATCH("/contacts/:id", deps.Admin.Contacts.Update)
+			admin.DELETE("/contacts/:id", deps.Admin.Contacts.Delete)
 		}
 		if deps.Admin.Events != nil {
 			admin.GET("/events", deps.Admin.Events.List)
+			admin.GET("/events/:id", deps.Admin.Events.Get)
+			admin.DELETE("/events/:id", deps.Admin.Events.Delete)
 		}
 	}
 

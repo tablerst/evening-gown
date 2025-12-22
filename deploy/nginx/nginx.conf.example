@@ -1,0 +1,73 @@
+# evening-gown Nginx 配置（示例，可提交到 Git）
+#
+# 用法（二选一）：
+# 1) 放到 /etc/nginx/conf.d/evening-gown.conf（推荐）
+# 2) 或者放到 /etc/nginx/sites-available/evening-gown 并在 sites-enabled 里做软链
+#
+# 注意：这份文件是“站点 server 块”，不是完整的 /etc/nginx/nginx.conf。
+
+server {
+    listen 80;
+    listen [::]:80;
+
+    # 改成你的域名
+    server_name example.com www.example.com;
+
+    # 改成你部署后前端 dist 的真实路径（Vite build 输出目录）
+    # 例如：/var/www/evening-gown/dist
+    root /var/www/evening-gown/dist;
+    index index.html;
+
+    # 如需上传较大内容（例如管理端提交较大 payload），可按需调整
+    client_max_body_size 10m;
+
+    # 隐藏 Nginx 版本号
+    server_tokens off;
+
+    # 静态资源缓存（Vite 默认 /assets 下是 hash 文件名，适合长缓存）
+    location ^~ /assets/ {
+        try_files $uri =404;
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+    }
+
+    # API 反向代理：前端代码使用 /api/v1/... 的相对路径
+    # 后端默认监听 0.0.0.0:8080（可通过 APP_HOST/APP_PORT 调整）
+    location ^~ /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 方便后端日志/链路追踪
+        proxy_set_header X-Request-Id $request_id;
+
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+
+    # 可选：把 /ping /healthz 也转发给后端，便于外部探活
+    location = /ping {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /healthz {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # SPA（Vue Router history 模式）：所有非文件请求回落到 index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

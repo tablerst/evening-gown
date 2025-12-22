@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { HttpError } from '@/api/http'
-import { adminGet, adminPatch } from '@/admin/api'
+import { adminDelete, adminGet, adminPatch } from '@/admin/api'
 
 type ContactLead = {
     id: number
@@ -67,6 +67,24 @@ const setStatus = async (id: number, status: ContactLead['status']) => {
     }
 }
 
+const remove = async (id: number) => {
+    if (!confirm(`确认删除线索 #${id}？（硬删除）`)) return
+    loading.value = true
+    errorMsg.value = ''
+    try {
+        await adminDelete(`/api/v1/admin/contacts/${id}`)
+        await load()
+    } catch (e) {
+        if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {
+            await router.replace({ name: 'admin-login' })
+            return
+        }
+        errorMsg.value = '删除失败'
+    } finally {
+        loading.value = false
+    }
+}
+
 onMounted(load)
 </script>
 
@@ -108,6 +126,7 @@ onMounted(load)
                             <th class="p-3">Message</th>
                             <th class="p-3">Source</th>
                             <th class="p-3">Status</th>
+                            <th class="p-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -127,6 +146,12 @@ onMounted(load)
                                     <option value="contacted">contacted</option>
                                     <option value="closed">closed</option>
                                 </select>
+                            </td>
+                            <td class="p-3">
+                                <button :disabled="loading" @click="remove(c.id)"
+                                    class="h-8 px-3 border border-red-300 bg-white text-red-700 hover:border-red-500 transition-none disabled:opacity-60">
+                                    Delete
+                                </button>
                             </td>
                         </tr>
                     </tbody>

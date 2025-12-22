@@ -14,6 +14,22 @@ gin + gorm(postgres) + go-redis/v9 + minio-go/v7 + jwt/v5
 - `go test ./...`（用于验证编译/依赖）
 - `go run .`（启动服务，默认监听 `0.0.0.0:8080`）
 
+3) （可选）插入演示数据（seed）：
+
+- ⚠️ 确保 `POSTGRES_DSN` 指向**本地/测试**数据库（seed 会写入数据；请勿对生产库执行）
+	- 建议先从 `./.env.example` 复制出 `./.env` 再修改
+- （可选）设置 `ADMIN_EMAIL` / `ADMIN_PASSWORD`，seed 会在“尚无管理员”时自动创建单一超管
+- 运行：`go run ./cmd/seed`
+
+seed 会写入：
+
+- Products：3 条（其中 2 条已发布、1 条草稿）
+- Updates：3 条（其中 2 条 published、1 条 draft）
+- Contacts：2 条
+- Events：1 条
+
+说明：前台公开接口只会展示已发布内容（草稿仅在后台可见）。
+
 ## 环境变量
 
 应用：

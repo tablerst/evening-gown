@@ -32,6 +32,24 @@ const routes: RouteRecordRaw[] = [
             title: 'Product · White Phantom',
         },
     },
+    {
+        path: '/updates',
+        name: 'updates',
+        component: () => import('../views/UpdatesView.vue'),
+        meta: {
+            layout: 'default',
+            title: 'Updates · White Phantom',
+        },
+    },
+    {
+        path: '/updates/:id',
+        name: 'update-detail',
+        component: () => import('../views/UpdateDetailView.vue'),
+        meta: {
+            layout: 'default',
+            title: 'Update · White Phantom',
+        },
+    },
 
     // Admin backoffice
     {

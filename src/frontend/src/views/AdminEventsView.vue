@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { HttpError } from '@/api/http'
-import { adminGet } from '@/admin/api'
+import { adminDelete, adminGet } from '@/admin/api'
 
 type EventItem = {
     id: number
@@ -54,6 +54,24 @@ const load = async () => {
     }
 }
 
+const remove = async (id: number) => {
+    if (!confirm(`确认删除事件 #${id}？（硬删除）`)) return
+    loading.value = true
+    errorMsg.value = ''
+    try {
+        await adminDelete(`/api/v1/admin/events/${id}`)
+        await load()
+    } catch (e) {
+        if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {
+            await router.replace({ name: 'admin-login' })
+            return
+        }
+        errorMsg.value = '删除失败'
+    } finally {
+        loading.value = false
+    }
+}
+
 onMounted(load)
 </script>
 
@@ -96,6 +114,7 @@ onMounted(load)
                             <th class="p-3">Product</th>
                             <th class="p-3">Page</th>
                             <th class="p-3">Anon</th>
+                            <th class="p-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -105,6 +124,12 @@ onMounted(load)
                             <td class="p-3 whitespace-nowrap">{{ e.productId ?? '-' }}</td>
                             <td class="p-3 min-w-[360px] text-black/60 break-all">{{ e.pageUrl }}</td>
                             <td class="p-3 whitespace-nowrap text-black/60">{{ e.anonId || e.sessionId || '-' }}</td>
+                            <td class="p-3">
+                                <button :disabled="loading" @click="remove(e.id)"
+                                    class="h-8 px-3 border border-red-300 bg-white text-red-700 hover:border-red-500 transition-none disabled:opacity-60">
+                                    Delete
+                                </button>
+                            </td>
                         </tr>
                     </tbody>
                 </table>

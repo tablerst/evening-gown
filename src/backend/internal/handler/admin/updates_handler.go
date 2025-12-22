@@ -31,13 +31,25 @@ type updateUpsertRequest struct {
 	PinnedRank *int `json:"pinnedRank"`
 }
 
+type updateUpdateRequest struct {
+	Type   *string `json:"type"`   // company|industry
+	Status *string `json:"status"` // draft|published|archived
+	Tag    *string `json:"tag"`
+	Title  *string `json:"title"`
+	Summary *string `json:"summary"`
+	Body   *string `json:"body"`
+	RefCode *string `json:"ref"`
+	PinnedRank *int `json:"pinnedRank"`
+}
+
 func (h *UpdatesHandler) List(c *gin.Context) {
 	if h == nil || h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service unavailable"})
 		return
 	}
 
-	q := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{})
+	q := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).
+		Where("deleted_at IS NULL")
 	if t := strings.TrimSpace(c.Query("type")); t != "" {
 		q = q.Where("type = ?", t)
 	}
@@ -132,7 +144,9 @@ func (h *UpdatesHandler) Get(c *gin.Context) {
 	}
 
 	var post model.UpdatePost
-	if err := h.db.WithContext(c.Request.Context()).First(&post, uint(id)).Error; err != nil {
+	if err := h.db.WithContext(c.Request.Context()).
+		Where("deleted_at IS NULL").
+		First(&post, uint(id)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
@@ -152,40 +166,54 @@ func (h *UpdatesHandler) Update(c *gin.Context) {
 		return
 	}
 
-	var req updateUpsertRequest
+	var req updateUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	updates := map[string]any{}
-	if s := strings.TrimSpace(req.Type); s != "" {
-		updates["type"] = s
-	}
-	if s := strings.TrimSpace(req.Status); s != "" {
-		updates["status"] = s
-		if s == "published" {
-			now := time.Now().UTC()
-			updates["published_at"] = &now
-		}
-		if s == "draft" {
-			updates["published_at"] = nil
+	if req.Type != nil {
+		if s := strings.TrimSpace(*req.Type); s != "" {
+			updates["type"] = s
 		}
 	}
-	if s := strings.TrimSpace(req.Tag); s != "" {
-		updates["tag"] = s
+	if req.Status != nil {
+		if s := strings.TrimSpace(*req.Status); s != "" {
+			updates["status"] = s
+			if s == "published" {
+				now := time.Now().UTC()
+				updates["published_at"] = &now
+			}
+			if s == "draft" {
+				updates["published_at"] = nil
+			}
+		}
 	}
-	if s := strings.TrimSpace(req.Title); s != "" {
-		updates["title"] = s
+	if req.Tag != nil {
+		if s := strings.TrimSpace(*req.Tag); s != "" {
+			updates["tag"] = s
+		}
 	}
-	if s := strings.TrimSpace(req.Summary); s != "" {
-		updates["summary"] = s
+	if req.Title != nil {
+		if s := strings.TrimSpace(*req.Title); s != "" {
+			updates["title"] = s
+		}
 	}
-	if s := strings.TrimSpace(req.Body); s != "" {
-		updates["body"] = s
+	if req.Summary != nil {
+		if s := strings.TrimSpace(*req.Summary); s != "" {
+			updates["summary"] = s
+		}
 	}
-	if s := strings.TrimSpace(req.RefCode); s != "" {
-		updates["ref_code"] = s
+	if req.Body != nil {
+		if s := strings.TrimSpace(*req.Body); s != "" {
+			updates["body"] = s
+		}
+	}
+	if req.RefCode != nil {
+		if s := strings.TrimSpace(*req.RefCode); s != "" {
+			updates["ref_code"] = s
+		}
 	}
 	if req.PinnedRank != nil {
 		updates["pinned_rank"] = *req.PinnedRank
@@ -196,7 +224,10 @@ func (h *UpdatesHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).Where("id = ?", uint(id)).Updates(updates).Error; err != nil {
+	if err := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		Updates(updates).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -217,7 +248,10 @@ func (h *UpdatesHandler) Publish(c *gin.Context) {
 	}
 
 	now := time.Now().UTC()
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).Where("id = ?", uint(id)).Updates(map[string]any{
+	if err := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		Updates(map[string]any{
 		"status":       "published",
 		"published_at": &now,
 	}).Error; err != nil {
@@ -226,4 +260,59 @@ func (h *UpdatesHandler) Publish(c *gin.Context) {
 	}
 
 	h.Get(c)
+}
+
+func (h *UpdatesHandler) Unpublish(c *gin.Context) {
+	if h == nil || h.db == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service unavailable"})
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		Updates(map[string]any{
+			"status":       "draft",
+			"published_at": nil,
+		}).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.Get(c)
+}
+
+func (h *UpdatesHandler) Delete(c *gin.Context) {
+	if h == nil || h.db == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service unavailable"})
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	now := time.Now().UTC()
+	res := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		Update("deleted_at", &now)
+	if res.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": res.Error.Error()})
+		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

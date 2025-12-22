@@ -1,2 +1,5 @@
 /.idea/*
 misc/
+
+# Deployment (do not commit real server configs)
+/deploy/nginx/nginx.conf

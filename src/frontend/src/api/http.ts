@@ -68,6 +68,24 @@ export const httpPatch = async <T = unknown>(path: string, body?: Json, init?: R
     return payload as T
 }
 
+export const httpDelete = async <T = unknown>(path: string, init?: RequestInit): Promise<T> => {
+    const res = await fetch(buildUrl(path), {
+        ...init,
+        method: 'DELETE',
+        headers: {
+            Accept: 'application/json',
+            ...(init?.headers ?? {}),
+        },
+    })
+
+    // 204 No Content
+    if (res.status === 204) return undefined as T
+
+    const payload = await safeJson(res)
+    if (!res.ok) throw new HttpError(res.status, payload)
+    return payload as T
+}
+
 const safeJson = async (res: Response): Promise<unknown> => {
     const ct = res.headers.get('content-type') ?? ''
     if (!ct.includes('application/json')) {

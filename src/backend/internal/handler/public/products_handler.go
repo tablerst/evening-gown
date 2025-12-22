@@ -41,7 +41,8 @@ func (h *ProductsHandler) List(c *gin.Context) {
 	}
 
 	q := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
-		Where("published_at IS NOT NULL")
+		Where("published_at IS NOT NULL").
+		Where("deleted_at IS NULL")
 
 	if season := strings.TrimSpace(c.Query("season")); season != "" {
 		q = q.Where("season = ?", season)
@@ -117,7 +118,10 @@ func (h *ProductsHandler) Get(c *gin.Context) {
 	}
 
 	var p model.Product
-	if err := h.db.WithContext(c.Request.Context()).Where("published_at IS NOT NULL").First(&p, uint(id)).Error; err != nil {
+	if err := h.db.WithContext(c.Request.Context()).
+		Where("published_at IS NOT NULL").
+		Where("deleted_at IS NULL").
+		First(&p, uint(id)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}

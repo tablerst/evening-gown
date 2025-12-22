@@ -50,7 +50,8 @@ func (h *UpdatesHandler) List(c *gin.Context) {
 	// Only show company updates for now.
 	q := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).
 		Where("type = ?", "company").
-		Where("status = ?", "published")
+		Where("status = ?", "published").
+		Where("deleted_at IS NULL")
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
@@ -99,6 +100,7 @@ func (h *UpdatesHandler) Get(c *gin.Context) {
 	if err := h.db.WithContext(c.Request.Context()).
 		Where("type = ?", "company").
 		Where("status = ?", "published").
+		Where("deleted_at IS NULL").
 		First(&p, uint(id)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
