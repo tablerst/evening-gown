@@ -3,10 +3,14 @@ module evening-gown
 go 1.25
 
 require (
+	github.com/gin-contrib/cors v1.7.6
+	github.com/gin-contrib/pprof v1.5.3
+	github.com/gin-contrib/requestid v1.0.5
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/minio/minio-go/v7 v7.0.97
 	github.com/redis/go-redis/v9 v9.17.2
+	go.uber.org/goleak v1.3.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
 )
