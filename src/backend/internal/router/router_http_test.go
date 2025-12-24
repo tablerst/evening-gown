@@ -526,6 +526,39 @@ func TestRouter_PublicAndAdmin_APIs_EndToEnd(t *testing.T) {
 			t.Fatalf("expected %d, got %d: %s", http.StatusNotFound, getResp.Code, getResp.Body.String())
 		}
 	}
+
+	// Admin: change password should force logout (old token becomes invalid).
+	newAdminPassword := "passw0rd456" // >= 10 chars
+	{
+		resp := doRequest(t, r, http.MethodPatch, "/api/v1/admin/me/password", []byte(`{"oldPassword":"`+adminPassword+`","newPassword":"`+newAdminPassword+`"}`), withAuth(jsonHeaders(), adminToken))
+		if resp.Code != http.StatusOK {
+			t.Fatalf("expected %d, got %d: %s", http.StatusOK, resp.Code, resp.Body.String())
+		}
+	}
+	{
+		resp := doRequest(t, r, http.MethodGet, "/api/v1/admin/me", nil, map[string]string{"Authorization": "Bearer " + adminToken})
+		if resp.Code != http.StatusUnauthorized {
+			t.Fatalf("expected %d, got %d: %s", http.StatusUnauthorized, resp.Code, resp.Body.String())
+		}
+	}
+	{
+		resp := doRequest(t, r, http.MethodPost, "/api/v1/admin/auth/login", []byte(`{"email":"`+adminEmail+`","password":"`+newAdminPassword+`"}`), jsonHeaders())
+		if resp.Code != http.StatusOK {
+			t.Fatalf("expected %d, got %d: %s", http.StatusOK, resp.Code, resp.Body.String())
+		}
+		var got map[string]any
+		mustJSON(t, resp.Body.Bytes(), &got)
+		adminToken, _ = got["token"].(string)
+		if strings.TrimSpace(adminToken) == "" {
+			t.Fatalf("expected token")
+		}
+	}
+	{
+		resp := doRequest(t, r, http.MethodGet, "/api/v1/admin/me", nil, map[string]string{"Authorization": "Bearer " + adminToken})
+		if resp.Code != http.StatusOK {
+			t.Fatalf("expected %d, got %d: %s", http.StatusOK, resp.Code, resp.Body.String())
+		}
+	}
 }
 
 func openTestDB(t *testing.T) *gorm.DB {

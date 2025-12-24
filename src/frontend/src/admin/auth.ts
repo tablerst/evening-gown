@@ -1,4 +1,4 @@
-import { httpGet, httpPost } from '@/api/http'
+import { httpGet, httpPatch, httpPost } from '@/api/http'
 
 const TOKEN_KEY = 'admin_token'
 
@@ -25,6 +25,16 @@ export const adminLogin = async (email: string, password: string) => {
 export const adminMe = async () => {
     const token = getAdminToken()
     return httpGet<{ id: number; email: string; role: string }>('/api/v1/admin/me', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+}
+
+export const adminChangePassword = async (oldPassword: string, newPassword: string) => {
+    const token = getAdminToken()
+    return httpPatch<{ ok: boolean }>('/api/v1/admin/me/password', {
+        oldPassword,
+        newPassword,
+    }, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
 }

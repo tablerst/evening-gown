@@ -56,7 +56,8 @@ func EnsureSingleAdmin(db *gorm.DB, email, password string) error {
 		return fmt.Errorf("hash admin password: %w", err)
 	}
 
-	now := time.Now().UTC()
+	// JWT iat is second-precision. Truncate to seconds so AdminAuth comparison is stable.
+	now := time.Now().UTC().Truncate(time.Second)
 	user := model.User{
 		Email:          email,
 		PasswordHash:   hash,

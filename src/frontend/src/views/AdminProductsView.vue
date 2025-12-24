@@ -2,6 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { NButton, NCard, NForm, NFormItem, NInput, NInputNumber, NModal, NSpace, NSwitch } from 'naive-ui'
+
 import { HttpError, resolveApiUrl } from '@/api/http'
 import { adminDelete, adminGet, adminPatch, adminPost } from '@/admin/api'
 import { appEnv } from '@/config/env'
@@ -32,6 +34,9 @@ const errorMsg = ref('')
 const products = ref<Product[]>([])
 
 const filterStatus = ref<'all' | 'draft' | 'published'>('all')
+
+const showCreateModal = ref(false)
+const showEditModal = ref(false)
 
 const editingId = ref<number | null>(null)
 const editForm = ref({
@@ -176,6 +181,8 @@ const create = async () => {
             detail,
         })
         await load()
+
+        showCreateModal.value = false
     } catch {
         errorMsg.value = '创建失败（请检查 JSON 或字段）'
     } finally {
@@ -203,6 +210,8 @@ const startEdit = async (id: number) => {
             hoverImageKey: p.hoverImageKey ?? '',
             detailJson: JSON.stringify(p.detail ?? { specs: [], option_groups: [] }),
         }
+
+        showEditModal.value = true
     } catch (e) {
         if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {
             await router.replace({ name: 'admin-login' })
@@ -216,6 +225,7 @@ const startEdit = async (id: number) => {
 
 const cancelEdit = () => {
     editingId.value = null
+    showEditModal.value = false
 }
 
 const saveEdit = async () => {
@@ -245,7 +255,9 @@ const saveEdit = async () => {
             hoverImageKey: editForm.value.hoverImageKey,
             detail,
         })
+
         editingId.value = null
+        showEditModal.value = false
         await load()
     } catch (e) {
         if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {
@@ -298,41 +310,95 @@ onMounted(load)
 </script>
 
 <template>
-    <main class="min-h-screen bg-white">
-        <div class="px-6 py-10 max-w-6xl mx-auto">
-            <div class="flex items-center justify-between">
-                <h1 class="font-display text-2xl uppercase tracking-wider">Products</h1>
-                <router-link :to="{ name: 'admin-home' }" class="font-mono text-xs uppercase tracking-[0.25em]">←
-                    Back</router-link>
+    <div class="max-w-6xl mx-auto">
+        <NCard size="large">
+            <NSpace justify="space-between" align="center" :wrap="true">
+                <NSpace align="center" :size="12" :wrap="true">
+                    <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">Status</div>
+                    <select v-model="filterStatus" class="h-9 px-2 border border-border font-mono text-xs">
+                        <option value="all">all</option>
+                        <option value="draft">draft</option>
+                        <option value="published">published</option>
+                    </select>
+                    <NButton size="small" :loading="loading" secondary @click="load">Refresh</NButton>
+                </NSpace>
+                <NButton size="small" type="primary" @click="showCreateModal = true">New Product</NButton>
+            </NSpace>
+
+            <p v-if="errorMsg" class="mt-3 font-mono text-xs text-red-600">{{ errorMsg }}</p>
+
+            <div class="mt-4 overflow-x-auto border border-border">
+                <table class="min-w-full text-left font-mono text-xs">
+                    <thead class="bg-border/30">
+                        <tr>
+                            <th class="p-3">ID</th>
+                            <th class="p-3">StyleNo</th>
+                            <th class="p-3">Season</th>
+                            <th class="p-3">Category</th>
+                            <th class="p-3">New</th>
+                            <th class="p-3">Published</th>
+                            <th class="p-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="p in products" :key="p.id" class="border-t border-border">
+                            <td class="p-3">{{ p.id }}</td>
+                            <td class="p-3">{{ p.styleNo }}</td>
+                            <td class="p-3">{{ p.season }}</td>
+                            <td class="p-3">{{ p.category }}</td>
+                            <td class="p-3">{{ p.isNew ? 'YES' : 'NO' }}</td>
+                            <td class="p-3">{{ p.publishedAt ? 'YES' : 'NO' }}</td>
+                            <td class="p-3">
+                                <NSpace :size="8" :wrap="true">
+                                    <NButton size="tiny" secondary :disabled="loading" @click="startEdit(p.id)">Edit
+                                    </NButton>
+                                    <NButton v-if="!p.publishedAt" size="tiny" :disabled="loading"
+                                        @click="togglePublish(p.id, 'publish')">Publish</NButton>
+                                    <NButton v-else size="tiny" secondary :disabled="loading"
+                                        @click="togglePublish(p.id, 'unpublish')">Unpublish</NButton>
+                                    <NButton size="tiny" type="error" secondary :disabled="loading"
+                                        @click="remove(p.id)">Delete</NButton>
+                                </NSpace>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
+        </NCard>
 
-            <p v-if="errorMsg" class="mt-4 font-mono text-xs text-red-600">{{ errorMsg }}</p>
+        <NModal v-model:show="showCreateModal" preset="card" style="width: min(860px, calc(100vw - 32px))">
+            <template #header>
+                <div class="font-display text-lg uppercase tracking-wider">New Product</div>
+            </template>
+            <NForm :show-feedback="false" label-placement="top">
+                <div class="grid md:grid-cols-2 gap-3">
+                    <NFormItem label="StyleNo">
+                        <NInputNumber v-model:value="form.styleNo" :min="0" />
+                    </NFormItem>
+                    <NFormItem label="Season">
+                        <NInput v-model:value="form.season" />
+                    </NFormItem>
+                    <NFormItem label="Category">
+                        <NInput v-model:value="form.category" />
+                    </NFormItem>
+                    <NFormItem label="Availability">
+                        <NInput v-model:value="form.availability" />
+                    </NFormItem>
+                    <NFormItem label="New">
+                        <NSwitch v-model:value="form.isNew" />
+                    </NFormItem>
+                    <NFormItem label="New Rank">
+                        <NInputNumber v-model:value="form.newRank" :min="0" />
+                    </NFormItem>
+                </div>
 
-            <section class="mt-8 border border-border p-6">
-                <h2 class="font-mono text-xs uppercase tracking-[0.25em] text-black/60">Create</h2>
-                <div class="mt-4 grid md:grid-cols-2 gap-3">
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">StyleNo</div>
-                        <input v-model.number="form.styleNo" type="number"
-                            class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Season</div>
-                        <input v-model.trim="form.season" class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Category</div>
-                        <input v-model.trim="form.category" class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Availability</div>
-                        <input v-model.trim="form.availability" class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Cover Image URL</div>
-                        <input v-model.trim="form.coverImage" @input="form.coverImageKey = ''"
-                            class="mt-1 w-full h-10 px-3 border border-border" />
-
+                <div class="grid md:grid-cols-2 gap-3">
+                    <div>
+                        <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">Cover Image</div>
+                        <div class="mt-2">
+                            <NInput v-model:value="form.coverImage" @input="form.coverImageKey = ''"
+                                placeholder="URL" />
+                        </div>
                         <div class="mt-2 flex items-center gap-3">
                             <input type="file" accept="image/*" :disabled="loading || createUpload.cover.uploading"
                                 @change="(e) => onPickImage('create', 'cover', e)" class="block w-full text-xs" />
@@ -341,17 +407,19 @@ onMounted(load)
                         </div>
                         <p class="mt-1 font-mono text-xs text-black/40">自动压缩为 WebP（≤ {{ maxUploadHint }}）并上传到 MinIO</p>
                         <p v-if="createUpload.cover.error" class="mt-1 font-mono text-xs text-red-600">{{
-                            createUpload.cover.error }}</p>
+                            createUpload.cover.error
+                            }}</p>
                         <div v-if="createUpload.cover.previewUrl || form.coverImage" class="mt-2">
                             <img :src="createUpload.cover.previewUrl || resolveApiUrl(form.coverImage)"
                                 class="h-14 w-14 object-cover border border-border" />
                         </div>
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Hover Image URL</div>
-                        <input v-model.trim="form.hoverImage" @input="form.hoverImageKey = ''"
-                            class="mt-1 w-full h-10 px-3 border border-border" />
-
+                    </div>
+                    <div>
+                        <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">Hover Image</div>
+                        <div class="mt-2">
+                            <NInput v-model:value="form.hoverImage" @input="form.hoverImageKey = ''"
+                                placeholder="URL" />
+                        </div>
                         <div class="mt-2 flex items-center gap-3">
                             <input type="file" accept="image/*" :disabled="loading || createUpload.hover.uploading"
                                 @change="(e) => onPickImage('create', 'hover', e)" class="block w-full text-xs" />
@@ -360,67 +428,63 @@ onMounted(load)
                         </div>
                         <p class="mt-1 font-mono text-xs text-black/40">自动压缩为 WebP（≤ {{ maxUploadHint }}）并上传到 MinIO</p>
                         <p v-if="createUpload.hover.error" class="mt-1 font-mono text-xs text-red-600">{{
-                            createUpload.hover.error }}</p>
+                            createUpload.hover.error
+                            }}</p>
                         <div v-if="createUpload.hover.previewUrl || form.hoverImage" class="mt-2">
                             <img :src="createUpload.hover.previewUrl || resolveApiUrl(form.hoverImage)"
                                 class="h-14 w-14 object-cover border border-border" />
                         </div>
-                    </label>
-                    <label class="flex items-center gap-2 font-mono text-xs">
-                        <input v-model="form.isNew" type="checkbox" />
-                        New
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">New Rank</div>
-                        <input v-model.number="form.newRank" type="number"
-                            class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
+                    </div>
                 </div>
-                <label class="block mt-3">
-                    <div class="font-mono text-xs text-black/60">Detail JSON (options/specs)</div>
-                    <textarea v-model="form.detailJson" rows="6"
-                        class="mt-1 w-full px-3 py-2 border border-border font-mono text-xs"></textarea>
-                </label>
-                <button :disabled="loading || !canSubmit" @click="create"
-                    class="mt-4 h-10 px-4 bg-brand text-white font-mono text-xs uppercase tracking-[0.25em] disabled:opacity-60">
-                    Create
-                </button>
-            </section>
 
-            <section v-if="editingId" class="mt-8 border border-border p-6">
-                <div class="flex items-center justify-between gap-4">
-                    <h2 class="font-mono text-xs uppercase tracking-[0.25em] text-black/60">Edit #{{ editingId }}</h2>
-                    <button :disabled="loading" @click="cancelEdit"
-                        class="h-9 px-3 border border-border font-mono text-xs uppercase tracking-[0.25em] disabled:opacity-60">Cancel</button>
+                <NFormItem label="Detail JSON (options/specs)" class="mt-3">
+                    <NInput v-model:value="form.detailJson" type="textarea" :autosize="{ minRows: 6, maxRows: 14 }"
+                        class="font-mono text-xs" />
+                </NFormItem>
+
+                <NSpace justify="end" :size="12">
+                    <NButton secondary :disabled="loading" @click="showCreateModal = false">Cancel</NButton>
+                    <NButton type="primary" :loading="loading" :disabled="!canSubmit" @click="create">Create</NButton>
+                </NSpace>
+            </NForm>
+        </NModal>
+
+        <NModal v-model:show="showEditModal" preset="card" style="width: min(860px, calc(100vw - 32px))">
+            <template #header>
+                <div class="font-display text-lg uppercase tracking-wider">Edit #{{ editingId }}</div>
+            </template>
+            <NForm :show-feedback="false" label-placement="top">
+                <div class="grid md:grid-cols-2 gap-3">
+                    <NFormItem label="Slug">
+                        <NInput v-model:value="editForm.slug" />
+                    </NFormItem>
+                    <NFormItem label="StyleNo">
+                        <NInputNumber v-model:value="editForm.styleNo" :min="0" />
+                    </NFormItem>
+                    <NFormItem label="Season">
+                        <NInput v-model:value="editForm.season" />
+                    </NFormItem>
+                    <NFormItem label="Category">
+                        <NInput v-model:value="editForm.category" />
+                    </NFormItem>
+                    <NFormItem label="Availability">
+                        <NInput v-model:value="editForm.availability" />
+                    </NFormItem>
+                    <NFormItem label="New">
+                        <NSwitch v-model:value="editForm.isNew" />
+                    </NFormItem>
+                    <NFormItem label="New Rank">
+                        <NInputNumber v-model:value="editForm.newRank" :min="0" />
+                    </NFormItem>
                 </div>
-                <div class="mt-4 grid md:grid-cols-2 gap-3">
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Slug</div>
-                        <input v-model.trim="editForm.slug" class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">StyleNo</div>
-                        <input v-model.number="editForm.styleNo" type="number"
-                            class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Season</div>
-                        <input v-model.trim="editForm.season" class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Category</div>
-                        <input v-model.trim="editForm.category" class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Availability</div>
-                        <input v-model.trim="editForm.availability"
-                            class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Cover Image URL</div>
-                        <input v-model.trim="editForm.coverImage" @input="editForm.coverImageKey = ''"
-                            class="mt-1 w-full h-10 px-3 border border-border" />
 
+                <div class="grid md:grid-cols-2 gap-3">
+                    <div>
+                        <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">Cover Image</div>
+                        <div class="mt-2">
+                            <NInput v-model:value="editForm.coverImage" @input="editForm.coverImageKey = ''"
+                                placeholder="URL" />
+                        </div>
                         <div class="mt-2 flex items-center gap-3">
                             <input type="file" accept="image/*" :disabled="loading || editUpload.cover.uploading"
                                 @change="(e) => onPickImage('edit', 'cover', e)" class="block w-full text-xs" />
@@ -429,17 +493,19 @@ onMounted(load)
                         </div>
                         <p class="mt-1 font-mono text-xs text-black/40">自动压缩为 WebP（≤ {{ maxUploadHint }}）并上传到 MinIO</p>
                         <p v-if="editUpload.cover.error" class="mt-1 font-mono text-xs text-red-600">{{
-                            editUpload.cover.error }}</p>
+                            editUpload.cover.error
+                            }}</p>
                         <div v-if="editUpload.cover.previewUrl || editForm.coverImage" class="mt-2">
                             <img :src="editUpload.cover.previewUrl || resolveApiUrl(editForm.coverImage)"
                                 class="h-14 w-14 object-cover border border-border" />
                         </div>
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">Hover Image URL</div>
-                        <input v-model.trim="editForm.hoverImage" @input="editForm.hoverImageKey = ''"
-                            class="mt-1 w-full h-10 px-3 border border-border" />
-
+                    </div>
+                    <div>
+                        <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">Hover Image</div>
+                        <div class="mt-2">
+                            <NInput v-model:value="editForm.hoverImage" @input="editForm.hoverImageKey = ''"
+                                placeholder="URL" />
+                        </div>
                         <div class="mt-2 flex items-center gap-3">
                             <input type="file" accept="image/*" :disabled="loading || editUpload.hover.uploading"
                                 @change="(e) => onPickImage('edit', 'hover', e)" class="block w-full text-xs" />
@@ -448,92 +514,25 @@ onMounted(load)
                         </div>
                         <p class="mt-1 font-mono text-xs text-black/40">自动压缩为 WebP（≤ {{ maxUploadHint }}）并上传到 MinIO</p>
                         <p v-if="editUpload.hover.error" class="mt-1 font-mono text-xs text-red-600">{{
-                            editUpload.hover.error }}</p>
+                            editUpload.hover.error
+                            }}</p>
                         <div v-if="editUpload.hover.previewUrl || editForm.hoverImage" class="mt-2">
                             <img :src="editUpload.hover.previewUrl || resolveApiUrl(editForm.hoverImage)"
                                 class="h-14 w-14 object-cover border border-border" />
                         </div>
-                    </label>
-                    <label class="flex items-center gap-2 font-mono text-xs">
-                        <input v-model="editForm.isNew" type="checkbox" />
-                        New
-                    </label>
-                    <label class="block">
-                        <div class="font-mono text-xs text-black/60">New Rank</div>
-                        <input v-model.number="editForm.newRank" type="number"
-                            class="mt-1 w-full h-10 px-3 border border-border" />
-                    </label>
-                </div>
-                <label class="block mt-3">
-                    <div class="font-mono text-xs text-black/60">Detail JSON (options/specs)</div>
-                    <textarea v-model="editForm.detailJson" rows="6"
-                        class="mt-1 w-full px-3 py-2 border border-border font-mono text-xs"></textarea>
-                </label>
-                <button :disabled="loading" @click="saveEdit"
-                    class="mt-4 h-10 px-4 bg-brand text-white font-mono text-xs uppercase tracking-[0.25em] disabled:opacity-60">
-                    Save
-                </button>
-            </section>
-
-            <section class="mt-8">
-                <div class="flex items-center justify-between gap-4">
-                    <h2 class="font-mono text-xs uppercase tracking-[0.25em] text-black/60">List</h2>
-                    <div class="flex items-center gap-3">
-                        <select v-model="filterStatus" class="h-9 px-2 border border-border font-mono text-xs">
-                            <option value="all">all</option>
-                            <option value="draft">draft</option>
-                            <option value="published">published</option>
-                        </select>
-                        <button @click="load"
-                            class="h-9 px-3 border border-border font-mono text-xs uppercase tracking-[0.25em]">Refresh</button>
                     </div>
                 </div>
 
-                <div class="mt-4 overflow-x-auto border border-border">
-                    <table class="min-w-full text-left font-mono text-xs">
-                        <thead class="bg-border/30">
-                            <tr>
-                                <th class="p-3">ID</th>
-                                <th class="p-3">StyleNo</th>
-                                <th class="p-3">Season</th>
-                                <th class="p-3">Category</th>
-                                <th class="p-3">New</th>
-                                <th class="p-3">Published</th>
-                                <th class="p-3">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="p in products" :key="p.id" class="border-t border-border">
-                                <td class="p-3">{{ p.id }}</td>
-                                <td class="p-3">{{ p.styleNo }}</td>
-                                <td class="p-3">{{ p.season }}</td>
-                                <td class="p-3">{{ p.category }}</td>
-                                <td class="p-3">{{ p.isNew ? 'YES' : 'NO' }}</td>
-                                <td class="p-3">{{ p.publishedAt ? 'YES' : 'NO' }}</td>
-                                <td class="p-3">
-                                    <button :disabled="loading" @click="startEdit(p.id)"
-                                        class="h-8 px-3 border border-border bg-white hover:border-black transition-none disabled:opacity-60">
-                                        Edit
-                                    </button>
-                                    <button v-if="!p.publishedAt" :disabled="loading"
-                                        @click="togglePublish(p.id, 'publish')"
-                                        class="h-8 px-3 border border-black bg-white hover:bg-brand hover:text-white transition-none disabled:opacity-60">
-                                        Publish
-                                    </button>
-                                    <button v-else :disabled="loading" @click="togglePublish(p.id, 'unpublish')"
-                                        class="h-8 px-3 border border-border bg-white hover:border-black transition-none disabled:opacity-60">
-                                        Unpublish
-                                    </button>
-                                    <button :disabled="loading" @click="remove(p.id)"
-                                        class="h-8 px-3 border border-red-300 bg-white text-red-700 hover:border-red-500 transition-none disabled:opacity-60">
-                                        Delete
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        </div>
-    </main>
+                <NFormItem label="Detail JSON (options/specs)" class="mt-3">
+                    <NInput v-model:value="editForm.detailJson" type="textarea" :autosize="{ minRows: 6, maxRows: 14 }"
+                        class="font-mono text-xs" />
+                </NFormItem>
+
+                <NSpace justify="end" :size="12">
+                    <NButton secondary :disabled="loading" @click="cancelEdit">Cancel</NButton>
+                    <NButton type="primary" :loading="loading" :disabled="!editingId" @click="saveEdit">Save</NButton>
+                </NSpace>
+            </NForm>
+        </NModal>
+    </div>
 </template>

@@ -146,6 +146,7 @@ func New(deps Dependencies) *gin.Engine {
 		}
 		if deps.Admin.Auth != nil {
 			admin.GET("/me", deps.Admin.Auth.Me)
+			admin.PATCH("/me/password", deps.Admin.Auth.ChangePassword)
 		}
 		if deps.Admin.Products != nil {
 			admin.GET("/products", deps.Admin.Products.List)

@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
-import DefaultLayout from '@/layouts/DefaultLayout.vue'
-import BlankLayout from '@/layouts/BlankLayout.vue'
+const DefaultLayout = defineAsyncComponent(() => import('@/layouts/DefaultLayout.vue'))
+const BlankLayout = defineAsyncComponent(() => import('@/layouts/BlankLayout.vue'))
+const AdminLayout = defineAsyncComponent(() => import('@/layouts/AdminLayout.vue'))
 
 const route = useRoute()
 
 const layoutComponent = computed(() => {
-    return route.meta.layout === 'blank' ? BlankLayout : DefaultLayout
+    const layout = route.meta.layout
+    if (layout === 'blank') return BlankLayout
+    if (layout === 'admin') return AdminLayout
+    return DefaultLayout
 })
 </script>
 

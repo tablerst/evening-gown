@@ -66,7 +66,7 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-home',
         component: () => import('../views/AdminHomeView.vue'),
         meta: {
-            layout: 'blank',
+            layout: 'admin',
             title: 'Admin · White Phantom',
         },
     },
@@ -75,7 +75,7 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-products',
         component: () => import('../views/AdminProductsView.vue'),
         meta: {
-            layout: 'blank',
+            layout: 'admin',
             title: 'Admin Products · White Phantom',
         },
     },
@@ -84,7 +84,7 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-updates',
         component: () => import('../views/AdminUpdatesView.vue'),
         meta: {
-            layout: 'blank',
+            layout: 'admin',
             title: 'Admin Updates · White Phantom',
         },
     },
@@ -93,7 +93,7 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-contacts',
         component: () => import('../views/AdminContactsView.vue'),
         meta: {
-            layout: 'blank',
+            layout: 'admin',
             title: 'Admin Contacts · White Phantom',
         },
     },
@@ -102,7 +102,7 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-events',
         component: () => import('../views/AdminEventsView.vue'),
         meta: {
-            layout: 'blank',
+            layout: 'admin',
             title: 'Admin Events · White Phantom',
         },
     },
