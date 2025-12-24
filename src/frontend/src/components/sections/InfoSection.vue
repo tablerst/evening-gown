@@ -136,17 +136,17 @@ const submit = async () => {
                 <h3 class="font-display text-xl mb-6 uppercase tracking-wider">{{ t('info.brandTitle') }}</h3>
                 <ul class="font-mono text-sm space-y-4 text-gray-800">
                     <li class="flex justify-between border-b border-gray-100 pb-2"><span>{{ t('info.brandStats.est')
-                            }}</span><span>{{ t('info.brandStats.estValue') }}</span>
+                    }}</span><span>{{ t('info.brandStats.estValue') }}</span>
                     </li>
                     <li class="flex justify-between border-b border-gray-100 pb-2"><span>{{ t('info.brandStats.hq')
-                            }}</span><span>{{ t('info.brandStats.hqValue') }}</span>
+                    }}</span><span>{{ t('info.brandStats.hqValue') }}</span>
                     </li>
                     <li class="flex justify-between border-b border-gray-100 pb-2"><span>{{
                         t('info.brandStats.clients')
                             }}</span><span>{{ t('info.brandStats.clientsValue') }}</span></li>
                     <li class="flex justify-between border-b border-gray-100 pb-2">
                         <span>{{ t('info.brandStats.capacity') }}</span><span>{{ t('info.brandStats.capacityValue')
-                            }}</span>
+                        }}</span>
                     </li>
                 </ul>
             </div>
@@ -184,9 +184,9 @@ const submit = async () => {
             </div>
         </div>
 
-        <div class="bg-white relative overflow-hidden group min-h-[300px]">
+        <!-- <div class="bg-white relative overflow-hidden group min-h-[300px]">
             <iframe width="800" height="460" frameborder='0' scrolling='no' marginheight='0' marginwidth='0'
                 src="https://surl.amap.com/4yX3MlhjTdBi"></iframe>
-        </div>
+        </div> -->
     </section>
 </template>
