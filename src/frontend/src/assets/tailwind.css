@@ -110,13 +110,46 @@
 
   .lens-nav {
     --lens-nav-pad-y: 1.25rem;
+    /* Keep in sync with template: px-6 (1.5rem) and md:px-10 (2.5rem) */
+    --lens-nav-pad-x: 1.5rem;
+    /* Shared brand logo sizing so the left panel can match the logo area exactly */
+    --lens-brand-logo-w: clamp(104px, 10.5vw, 140px);
+    --lens-brand-logo-h: clamp(52px, 5vw, 68px);
     background: rgba(255, 255, 255, 0.78);
     backdrop-filter: blur(22px);
     border-bottom: 1px solid var(--border-hairline);
     box-shadow: 0 12px 40px rgba(200, 200, 200, 0.35);
     transition: padding 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+    isolation: isolate;
     padding-top: calc(var(--lens-nav-pad-y) + env(safe-area-inset-top));
     padding-bottom: var(--lens-nav-pad-y);
+  }
+
+  @media (min-width: 768px) {
+    .lens-nav {
+      --lens-nav-pad-x: 2.5rem;
+    }
+  }
+
+  /* Ensure the panel stays behind all nav content without z-index side effects */
+  .lens-nav > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Left brand panel (方案B): merged into nav so it animates in sync with nav padding */
+  .lens-nav::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--lens-nav-pad-x);
+    width: var(--lens-brand-logo-w);
+    pointer-events: none;
+    z-index: 0;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent 55%), #000226;
+    border-right: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   }
 
   .lens-nav--compact {
@@ -151,42 +184,15 @@
     width: fit-content;
     max-width: min(70vw, 520px);
     padding-inline: 0;
-    background: #000226;
     color: #ffffff;
-    border-right: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-    overflow: hidden;
-  }
-
-  .lens-nav__brandTag::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent 55%);
-  }
-
-  /* 与 nav 的 py-5 / py-3 对齐：用负 margin 覆盖 nav padding，使品牌色铺满左侧区域 */
-  .lens-nav__brandTag--relaxed {
-    padding-top: calc(1.25rem + env(safe-area-inset-top));
-    padding-bottom: 1.25rem;
-    margin-top: calc(-1.25rem - env(safe-area-inset-top));
-    margin-bottom: -1.25rem;
-  }
-
-  .lens-nav__brandTag--compact {
-    padding-top: calc(0.75rem + env(safe-area-inset-top));
-    padding-bottom: 0.75rem;
-    margin-top: calc(-0.75rem - env(safe-area-inset-top));
-    margin-bottom: -0.75rem;
   }
 
   /* SVG 裁切：logo.svg 的 viewBox 上方空白较多，这里做“放大+上移+裁切” */
   .lens-nav__brandLogoCrop {
     display: block;
     overflow: hidden;
-    width: clamp(104px, 10.5vw, 140px);
-    height: clamp(52px, 5vw, 68px);
+    width: var(--lens-brand-logo-w);
+    height: var(--lens-brand-logo-h);
   }
 
   .lens-nav__brandLogo {

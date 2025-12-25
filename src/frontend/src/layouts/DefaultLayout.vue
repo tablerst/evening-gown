@@ -124,10 +124,7 @@ const mobileNavItems = computed(() => [
             'lens-nav fixed top-0 w-full z-50 px-6 md:px-10 flex justify-between items-center transition-all duration-300',
             isNavCompacted ? 'lens-nav--compact' : ''
         ]">
-            <RouterLink :to="{ name: 'home' }" :class="[
-                'lens-nav__brandTag',
-                isNavCompacted ? 'lens-nav__brandTag--compact' : 'lens-nav__brandTag--relaxed',
-            ]">
+            <RouterLink :to="{ name: 'home' }" class="lens-nav__brandTag">
                 <span class="lens-nav__brandLogoCrop">
                     <img :src="logo" :alt="t('nav.brandLine1')" class="lens-nav__brandLogo" />
                 </span>
