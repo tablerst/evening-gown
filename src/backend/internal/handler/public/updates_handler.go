@@ -1,11 +1,13 @@
 package public
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"evening-gown/internal/cache"
 	"evening-gown/internal/logging"
 	"evening-gown/internal/model"
 
@@ -14,12 +16,19 @@ import (
 )
 
 type UpdatesHandler struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache *cache.PublicCache
 }
 
-func NewUpdatesHandler(db *gorm.DB) *UpdatesHandler {
-	return &UpdatesHandler{db: db}
+func NewUpdatesHandler(db *gorm.DB, publicCache *cache.PublicCache) *UpdatesHandler {
+	return &UpdatesHandler{db: db, cache: publicCache}
 }
+
+const (
+	publicUpdatesListTTL    = 5 * time.Minute
+	publicUpdateDetailTTL   = 30 * time.Minute
+	publicUpdateNotFoundTTL = 30 * time.Second
+)
 
 type updateItem struct {
 	ID    uint   `json:"id"`
@@ -36,6 +45,8 @@ func (h *UpdatesHandler) List(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+
 	limit := parseIntQuery(c, "limit", 3)
 	offset := parseIntQuery(c, "offset", 0)
 	if limit <= 0 {
@@ -46,6 +57,16 @@ func (h *UpdatesHandler) List(c *gin.Context) {
 	}
 	if offset < 0 {
 		offset = 0
+	}
+
+	var cacheKey string
+	if h.cache != nil {
+		ver := h.cache.UpdatesVersion(ctx)
+		cacheKey = h.cache.UpdatesListKey(ver, limit, offset)
+		if b, hit, _ := h.cache.GetJSONBytes(ctx, cacheKey); hit {
+			c.Data(http.StatusOK, "application/json; charset=utf-8", b)
+			return
+		}
 	}
 
 	// Only show company updates for now.
@@ -84,7 +105,16 @@ func (h *UpdatesHandler) List(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"total": total, "items": items})
+	resp := gin.H{"total": total, "items": items}
+	if h.cache != nil && cacheKey != "" {
+		b, err := json.Marshal(resp)
+		if err == nil {
+			ttl := cache.TTLWithKeyJitter(publicUpdatesListTTL, cacheKey, 0.2)
+			h.cache.SetJSONBytes(ctx, cacheKey, b, ttl)
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *UpdatesHandler) Get(c *gin.Context) {
@@ -93,10 +123,26 @@ func (h *UpdatesHandler) Get(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
+	}
+
+	var cacheKey string
+	if h.cache != nil {
+		ver := h.cache.UpdatesVersion(ctx)
+		cacheKey = h.cache.UpdateDetailKey(ver, uint(id))
+		if b, hit, isNF := h.cache.GetJSONBytes(ctx, cacheKey); hit {
+			if isNF {
+				c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+				return
+			}
+			c.Data(http.StatusOK, "application/json; charset=utf-8", b)
+			return
+		}
 	}
 
 	var p model.UpdatePost
@@ -105,6 +151,10 @@ func (h *UpdatesHandler) Get(c *gin.Context) {
 		Where("status = ?", "published").
 		Where("deleted_at IS NULL").
 		First(&p, uint(id)).Error; err != nil {
+		if h.cache != nil && cacheKey != "" {
+			ttl := cache.TTLWithKeyJitter(publicUpdateNotFoundTTL, cacheKey, 0.2)
+			h.cache.SetNotFound(ctx, cacheKey, ttl)
+		}
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
@@ -113,7 +163,7 @@ func (h *UpdatesHandler) Get(c *gin.Context) {
 	if p.PublishedAt != nil {
 		date = p.PublishedAt.UTC().Format(time.RFC3339)
 	}
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"id":    p.ID,
 		"type":  p.Type,
 		"date":  date,
@@ -121,7 +171,17 @@ func (h *UpdatesHandler) Get(c *gin.Context) {
 		"title": p.Title,
 		"body":  p.Body,
 		"ref":   p.RefCode,
-	})
+	}
+
+	if h.cache != nil && cacheKey != "" {
+		b, err := json.Marshal(resp)
+		if err == nil {
+			ttl := cache.TTLWithKeyJitter(publicUpdateDetailTTL, cacheKey, 0.2)
+			h.cache.SetJSONBytes(ctx, cacheKey, b, ttl)
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func firstNonEmpty(a, b string) string {

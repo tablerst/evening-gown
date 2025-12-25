@@ -14,6 +14,7 @@ import (
 
 	jwtauth "evening-gown/internal/auth"
 	"evening-gown/internal/bootstrap"
+	"evening-gown/internal/cache"
 	"evening-gown/internal/config"
 	adminHandlers "evening-gown/internal/handler/admin"
 	authHandlerPkg "evening-gown/internal/handler/auth"
@@ -213,15 +214,17 @@ func TestRouter_PublicAndAdmin_APIs_EndToEnd(t *testing.T) {
 		t.Fatalf("ensure admin: %v", err)
 	}
 
+	publicCache := cache.NewPublicCache(nil)
+
 	deps := Dependencies{Health: health.New(db, nil, nil), Auth: authHandlerPkg.New(jwtCfg), EnableDevTokenIssuer: true}
-	deps.Public.Products = publicHandlers.NewProductsHandler(db)
-	deps.Public.Updates = publicHandlers.NewUpdatesHandler(db)
+	deps.Public.Products = publicHandlers.NewProductsHandler(db, publicCache)
+	deps.Public.Updates = publicHandlers.NewUpdatesHandler(db, publicCache)
 	deps.Public.Contacts = publicHandlers.NewContactsHandler(db)
 	deps.Public.Events = publicHandlers.NewEventsHandler(db)
 
 	deps.Admin.Auth = adminHandlers.NewAuthHandler(db, jwtSvc)
-	deps.Admin.Products = adminHandlers.NewProductsHandler(db)
-	deps.Admin.Updates = adminHandlers.NewUpdatesHandler(db)
+	deps.Admin.Products = adminHandlers.NewProductsHandler(db, publicCache)
+	deps.Admin.Updates = adminHandlers.NewUpdatesHandler(db, publicCache)
 	deps.Admin.Contacts = adminHandlers.NewContactsHandler(db)
 	deps.Admin.Events = adminHandlers.NewEventsHandler(db)
 	deps.Admin.AuthMiddleware = middleware.AdminAuth(db, jwtSvc)

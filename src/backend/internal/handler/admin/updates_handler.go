@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"evening-gown/internal/cache"
 	"evening-gown/internal/logging"
 	"evening-gown/internal/model"
 
@@ -14,11 +15,16 @@ import (
 )
 
 type UpdatesHandler struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache *cache.PublicCache
 }
 
-func NewUpdatesHandler(db *gorm.DB) *UpdatesHandler {
-	return &UpdatesHandler{db: db}
+func NewUpdatesHandler(db *gorm.DB, publicCache *cache.PublicCache) *UpdatesHandler {
+	return &UpdatesHandler{db: db, cache: publicCache}
+}
+
+func isPublicCompanyUpdate(p model.UpdatePost) bool {
+	return strings.TrimSpace(p.Type) == "company" && strings.TrimSpace(p.Status) == "published" && p.DeletedAt == nil
 }
 
 type updateUpsertRequest struct {
@@ -130,6 +136,9 @@ func (h *UpdatesHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if h.cache != nil && isPublicCompanyUpdate(post) {
+		_, _ = h.cache.BumpUpdatesVersion(c.Request.Context())
+	}
 
 	c.JSON(http.StatusCreated, post)
 }
@@ -166,6 +175,16 @@ func (h *UpdatesHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	var before model.UpdatePost
+	if err := h.db.WithContext(ctx).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		First(&before).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
 
@@ -227,12 +246,22 @@ func (h *UpdatesHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).
+	if err := h.db.WithContext(ctx).Model(&model.UpdatePost{}).
 		Where("id = ?", uint(id)).
 		Where("deleted_at IS NULL").
 		Updates(updates).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	var after model.UpdatePost
+	if err := h.db.WithContext(ctx).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		First(&after).Error; err == nil {
+		if h.cache != nil && (isPublicCompanyUpdate(before) || isPublicCompanyUpdate(after)) {
+			_, _ = h.cache.BumpUpdatesVersion(ctx)
+		}
 	}
 
 	h.Get(c)
@@ -250,16 +279,34 @@ func (h *UpdatesHandler) Publish(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+	var before model.UpdatePost
+	if err := h.db.WithContext(ctx).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		First(&before).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
 	now := time.Now().UTC()
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).
+	res := h.db.WithContext(ctx).Model(&model.UpdatePost{}).
 		Where("id = ?", uint(id)).
 		Where("deleted_at IS NULL").
 		Updates(map[string]any{
-		"status":       "published",
-		"published_at": &now,
-	}).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			"status":       "published",
+			"published_at": &now,
+		})
+	if res.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": res.Error.Error()})
 		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	if h.cache != nil && strings.TrimSpace(before.Type) == "company" {
+		_, _ = h.cache.BumpUpdatesVersion(ctx)
 	}
 
 	h.Get(c)
@@ -277,15 +324,33 @@ func (h *UpdatesHandler) Unpublish(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).
+	ctx := c.Request.Context()
+	var before model.UpdatePost
+	if err := h.db.WithContext(ctx).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		First(&before).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
+	res := h.db.WithContext(ctx).Model(&model.UpdatePost{}).
 		Where("id = ?", uint(id)).
 		Where("deleted_at IS NULL").
 		Updates(map[string]any{
 			"status":       "draft",
 			"published_at": nil,
-		}).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		})
+	if res.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": res.Error.Error()})
 		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	if h.cache != nil && isPublicCompanyUpdate(before) {
+		_, _ = h.cache.BumpUpdatesVersion(ctx)
 	}
 
 	h.Get(c)
@@ -303,8 +368,18 @@ func (h *UpdatesHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+	var before model.UpdatePost
+	if err := h.db.WithContext(ctx).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		First(&before).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
 	now := time.Now().UTC()
-	res := h.db.WithContext(c.Request.Context()).Model(&model.UpdatePost{}).
+	res := h.db.WithContext(ctx).Model(&model.UpdatePost{}).
 		Where("id = ?", uint(id)).
 		Where("deleted_at IS NULL").
 		Update("deleted_at", &now)
@@ -315,6 +390,9 @@ func (h *UpdatesHandler) Delete(c *gin.Context) {
 	if res.RowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
+	}
+	if h.cache != nil && isPublicCompanyUpdate(before) {
+		_, _ = h.cache.BumpUpdatesVersion(ctx)
 	}
 
 	c.Status(http.StatusNoContent)

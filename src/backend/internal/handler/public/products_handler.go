@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"evening-gown/internal/cache"
 	"evening-gown/internal/logging"
 	"evening-gown/internal/model"
 
@@ -14,12 +16,19 @@ import (
 )
 
 type ProductsHandler struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache *cache.PublicCache
 }
 
-func NewProductsHandler(db *gorm.DB) *ProductsHandler {
-	return &ProductsHandler{db: db}
+func NewProductsHandler(db *gorm.DB, publicCache *cache.PublicCache) *ProductsHandler {
+	return &ProductsHandler{db: db, cache: publicCache}
 }
+
+const (
+	publicProductsListTTL   = 5 * time.Minute
+	publicProductDetailTTL  = 30 * time.Minute
+	publicProductNotFoundTTL = 30 * time.Second
+)
 
 type productListItem struct {
 	ID           uint   `json:"id"`
@@ -41,20 +50,27 @@ func (h *ProductsHandler) List(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+
 	q := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
 		Where("published_at IS NOT NULL").
 		Where("deleted_at IS NULL")
 
-	if season := strings.TrimSpace(c.Query("season")); season != "" {
+	season := strings.TrimSpace(c.Query("season"))
+	category := strings.TrimSpace(c.Query("category"))
+	availability := strings.TrimSpace(c.Query("availability"))
+	isNew := strings.TrimSpace(c.Query("is_new"))
+
+	if season != "" {
 		q = q.Where("season = ?", season)
 	}
-	if category := strings.TrimSpace(c.Query("category")); category != "" {
+	if category != "" {
 		q = q.Where("category = ?", category)
 	}
-	if availability := strings.TrimSpace(c.Query("availability")); availability != "" {
+	if availability != "" {
 		q = q.Where("availability = ?", availability)
 	}
-	if isNew := strings.TrimSpace(c.Query("is_new")); isNew != "" {
+	if isNew != "" {
 		if isNew == "true" {
 			q = q.Where("is_new = true")
 		} else if isNew == "false" {
@@ -72,6 +88,18 @@ func (h *ProductsHandler) List(c *gin.Context) {
 	}
 	if offset < 0 {
 		offset = 0
+	}
+
+	// Cache-aside with versioned key: after admin writes bump the products version,
+	// the next read will bypass old cache entries.
+	var cacheKey string
+	if h.cache != nil {
+		ver := h.cache.ProductsVersion(ctx)
+		cacheKey = h.cache.ProductsListKey(ver, season, category, availability, isNew, limit, offset)
+		if b, hit, _ := h.cache.GetJSONBytes(ctx, cacheKey); hit {
+			c.Data(http.StatusOK, "application/json; charset=utf-8", b)
+			return
+		}
 	}
 
 	var total int64
@@ -105,7 +133,16 @@ func (h *ProductsHandler) List(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"total": total, "items": items})
+	resp := gin.H{"total": total, "items": items}
+	if h.cache != nil && cacheKey != "" {
+		b, err := json.Marshal(resp)
+		if err == nil {
+			ttl := cache.TTLWithKeyJitter(publicProductsListTTL, cacheKey, 0.2)
+			h.cache.SetJSONBytes(ctx, cacheKey, b, ttl)
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *ProductsHandler) Get(c *gin.Context) {
@@ -114,10 +151,26 @@ func (h *ProductsHandler) Get(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
+	}
+
+	var cacheKey string
+	if h.cache != nil {
+		ver := h.cache.ProductsVersion(ctx)
+		cacheKey = h.cache.ProductDetailKey(ver, uint(id))
+		if b, hit, isNF := h.cache.GetJSONBytes(ctx, cacheKey); hit {
+			if isNF {
+				c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+				return
+			}
+			c.Data(http.StatusOK, "application/json; charset=utf-8", b)
+			return
+		}
 	}
 
 	var p model.Product
@@ -125,11 +178,15 @@ func (h *ProductsHandler) Get(c *gin.Context) {
 		Where("published_at IS NOT NULL").
 		Where("deleted_at IS NULL").
 		First(&p, uint(id)).Error; err != nil {
+		if h.cache != nil && cacheKey != "" {
+			ttl := cache.TTLWithKeyJitter(publicProductNotFoundTTL, cacheKey, 0.2)
+			h.cache.SetNotFound(ctx, cacheKey, ttl)
+		}
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"id":           p.ID,
 		"slug":         p.Slug,
 		"styleNo":      p.StyleNo,
@@ -142,7 +199,17 @@ func (h *ProductsHandler) Get(c *gin.Context) {
 		"priceMode":    "negotiable",
 		"priceText":    "面议",
 		"detail":       jsonOrNull(p.DetailJSON),
-	})
+	}
+
+	if h.cache != nil && cacheKey != "" {
+		b, err := json.Marshal(resp)
+		if err == nil {
+			ttl := cache.TTLWithKeyJitter(publicProductDetailTTL, cacheKey, 0.2)
+			h.cache.SetJSONBytes(ctx, cacheKey, b, ttl)
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func pickPublicImageURL(objectKey string, legacyURL string) string {

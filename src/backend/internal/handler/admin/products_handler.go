@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"evening-gown/internal/cache"
 	"evening-gown/internal/logging"
 	"evening-gown/internal/model"
 
@@ -15,11 +16,12 @@ import (
 )
 
 type ProductsHandler struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache *cache.PublicCache
 }
 
-func NewProductsHandler(db *gorm.DB) *ProductsHandler {
-	return &ProductsHandler{db: db}
+func NewProductsHandler(db *gorm.DB, publicCache *cache.PublicCache) *ProductsHandler {
+	return &ProductsHandler{db: db, cache: publicCache}
 }
 
 
@@ -198,11 +200,23 @@ func (h *ProductsHandler) Update(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
+
+	var before model.Product
+	if err := h.db.WithContext(ctx).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		First(&before).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	wasPublished := before.PublishedAt != nil
 
 	var req productUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -263,12 +277,16 @@ func (h *ProductsHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
+	if err := h.db.WithContext(ctx).Model(&model.Product{}).
 		Where("id = ?", uint(id)).
 		Where("deleted_at IS NULL").
 		Updates(updates).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	if wasPublished && h.cache != nil {
+		_, _ = h.cache.BumpProductsVersion(ctx)
 	}
 
 	h.Get(c)
@@ -287,12 +305,21 @@ func (h *ProductsHandler) Publish(c *gin.Context) {
 	}
 
 	now := time.Now().UTC()
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
+	ctx := c.Request.Context()
+	res := h.db.WithContext(ctx).Model(&model.Product{}).
 		Where("id = ?", uint(id)).
 		Where("deleted_at IS NULL").
-		Update("published_at", &now).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		Update("published_at", &now)
+	if res.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": res.Error.Error()})
 		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	if h.cache != nil {
+		_, _ = h.cache.BumpProductsVersion(ctx)
 	}
 
 	h.Get(c)
@@ -310,12 +337,21 @@ func (h *ProductsHandler) Unpublish(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
+	ctx := c.Request.Context()
+	res := h.db.WithContext(ctx).Model(&model.Product{}).
 		Where("id = ?", uint(id)).
 		Where("deleted_at IS NULL").
-		Update("published_at", nil).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		Update("published_at", nil)
+	if res.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": res.Error.Error()})
 		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	if h.cache != nil {
+		_, _ = h.cache.BumpProductsVersion(ctx)
 	}
 
 	h.Get(c)
@@ -345,8 +381,19 @@ func (h *ProductsHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+	var before model.Product
+	if err := h.db.WithContext(ctx).
+		Where("id = ?", uint(id)).
+		Where("deleted_at IS NULL").
+		First(&before).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	wasPublished := before.PublishedAt != nil
+
 	now := time.Now().UTC()
-	res := h.db.WithContext(c.Request.Context()).Model(&model.Product{}).
+	res := h.db.WithContext(ctx).Model(&model.Product{}).
 		Where("id = ?", uint(id)).
 		Where("deleted_at IS NULL").
 		Update("deleted_at", &now)
@@ -357,6 +404,9 @@ func (h *ProductsHandler) Delete(c *gin.Context) {
 	if res.RowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
+	}
+	if wasPublished && h.cache != nil {
+		_, _ = h.cache.BumpProductsVersion(ctx)
 	}
 
 	c.Status(http.StatusNoContent)

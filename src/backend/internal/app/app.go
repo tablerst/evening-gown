@@ -106,10 +106,11 @@ func Run() error {
 	}
 
 	healthHandler := health.New(db, redisClient, minioClient)
+	publicCache := cache.NewPublicCache(redisClient)
 
 	deps := router.Dependencies{Health: healthHandler, Auth: authHandler, EnableDevTokenIssuer: cfg.Dev.EnableDevTokenIssuer}
 	if minioClient != nil {
-		deps.Public.Assets = publicHandlers.NewAssetsHandler(db, minioClient, cfg.Minio)
+		deps.Public.Assets = publicHandlers.NewAssetsHandler(db, minioClient, cfg.Minio, publicCache)
 	}
 
 	// Business APIs require Postgres.
@@ -121,8 +122,8 @@ func Run() error {
 			return err
 		}
 
-		deps.Public.Products = publicHandlers.NewProductsHandler(db)
-		deps.Public.Updates = publicHandlers.NewUpdatesHandler(db)
+		deps.Public.Products = publicHandlers.NewProductsHandler(db, publicCache)
+		deps.Public.Updates = publicHandlers.NewUpdatesHandler(db, publicCache)
 		deps.Public.Contacts = publicHandlers.NewContactsHandler(db)
 		deps.Public.Events = publicHandlers.NewEventsHandler(db)
 
@@ -131,8 +132,8 @@ func Run() error {
 			deps.Admin.Assets = adminHandlers.NewAssetsHandler(db, minioClient, cfg.Minio)
 		}
 		deps.Admin.Uploads = adminHandlers.NewUploadsHandler(minioClient, cfg.Minio, cfg.Upload)
-		deps.Admin.Products = adminHandlers.NewProductsHandler(db)
-		deps.Admin.Updates = adminHandlers.NewUpdatesHandler(db)
+		deps.Admin.Products = adminHandlers.NewProductsHandler(db, publicCache)
+		deps.Admin.Updates = adminHandlers.NewUpdatesHandler(db, publicCache)
 		deps.Admin.Contacts = adminHandlers.NewContactsHandler(db)
 		deps.Admin.Events = adminHandlers.NewEventsHandler(db)
 		deps.Admin.AuthMiddleware = middleware.AdminAuth(db, jwtSvc)

@@ -5,7 +5,9 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
+	"evening-gown/internal/cache"
 	"evening-gown/internal/config"
 	"evening-gown/internal/model"
 
@@ -18,11 +20,14 @@ type AssetsHandler struct {
 	db         *gorm.DB
 	minioClient *minio.Client
 	minioCfg    config.MinioConfig
+	cache       *cache.PublicCache
 }
 
-func NewAssetsHandler(db *gorm.DB, minioClient *minio.Client, minioCfg config.MinioConfig) *AssetsHandler {
-	return &AssetsHandler{db: db, minioClient: minioClient, minioCfg: minioCfg}
+func NewAssetsHandler(db *gorm.DB, minioClient *minio.Client, minioCfg config.MinioConfig, publicCache *cache.PublicCache) *AssetsHandler {
+	return &AssetsHandler{db: db, minioClient: minioClient, minioCfg: minioCfg, cache: publicCache}
 }
+
+const publicAssetAllowTTL = 15 * time.Minute
 
 // Get streams an object from MinIO through the application.
 //
@@ -77,12 +82,37 @@ func (h *AssetsHandler) Get(c *gin.Context) {
 	// Only allow assets that are referenced by a published product.
 	// NOTE: Admin backoffice can fetch draft assets via /api/v1/admin/assets/*key.
 	if h.db != nil {
+		ctx := c.Request.Context()
+		productsVer := int64(0)
+		if h.cache != nil {
+			productsVer = h.cache.ProductsVersion(ctx)
+			allowKey := h.cache.AssetAllowKey(productsVer, cleanKey)
+			if v, hit := h.cache.BoolFromCache(ctx, allowKey); hit {
+				if !v {
+					c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+					return
+				}
+				goto allowed
+			}
+			// Cache miss: fallthrough to DB check.
+			ok, err := h.isPublishedProductAsset(c, cleanKey)
+			if err != nil || !ok {
+				h.cache.SetBool(ctx, allowKey, false, cache.TTLWithKeyJitter(publicAssetAllowTTL, allowKey, 0.2))
+				c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+				return
+			}
+			h.cache.SetBool(ctx, allowKey, true, cache.TTLWithKeyJitter(publicAssetAllowTTL, allowKey, 0.2))
+			goto allowed
+		}
+
 		ok, err := h.isPublishedProductAsset(c, cleanKey)
 		if err != nil || !ok {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
 	}
+
+allowed:
 
 	ctx := c.Request.Context()
 
