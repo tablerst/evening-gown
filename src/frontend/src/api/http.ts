@@ -1,7 +1,10 @@
 type Json = Record<string, unknown> | unknown[] | string | number | boolean | null
 
 const rawBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
-const API_BASE = rawBase.replace(/\/$/, '')
+// Scheme A (dev same-origin): in development we intentionally DO NOT prefix API paths with
+// VITE_API_BASE_URL. Instead, requests stay as /api/... and are forwarded by Vite server.proxy.
+// This ensures <img> and canvas poster generation are same-origin (no CORS/canvas tainting).
+const API_BASE = import.meta.env.DEV ? '' : rawBase.replace(/\/$/, '')
 
 export class HttpError extends Error {
     status: number

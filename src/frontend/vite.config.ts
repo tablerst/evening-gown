@@ -41,5 +41,14 @@ export default defineConfig(({ mode }) => {
         'vue-i18n': 'vue-i18n/dist/vue-i18n.runtime.esm-bundler.js',
       },
     },
+    server: {
+      // Scheme A: keep frontend requests same-origin in dev, and proxy API calls to backend.
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
+      },
+    },
   }
 })
