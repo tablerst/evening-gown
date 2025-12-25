@@ -118,7 +118,7 @@ export const compressImageToWebpUnderLimit = async (file: File, options?: Compre
     }
 }
 
-export const uploadAdminImage = async (kind: UploadKind, styleNo: number, file: File): Promise<UploadResult> => {
+export const uploadAdminImage = async (kind: UploadKind, styleNo: string, file: File): Promise<UploadResult> => {
     const fd = new FormData()
     fd.append('kind', kind)
     fd.append('styleNo', String(styleNo))

@@ -3,7 +3,6 @@ package admin
 import (
 	"net/http"
 	"path"
-	"strconv"
 	"strings"
 
 	"evening-gown/internal/config"
@@ -131,8 +130,8 @@ func (h *AssetsHandler) isKnownProductAsset(c *gin.Context, objectKey string) (b
 		return false, nil
 	}
 
-	styleNo, err := strconv.Atoi(strings.TrimSpace(parts[1]))
-	if err != nil || styleNo <= 0 {
+	styleNo, err := model.NormalizeStyleNo(strings.TrimSpace(parts[1]))
+	if err != nil {
 		return false, nil
 	}
 

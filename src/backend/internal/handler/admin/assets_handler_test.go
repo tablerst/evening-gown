@@ -18,6 +18,10 @@ func openTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
+	sqlDB, err := db.DB()
+	if err == nil {
+		t.Cleanup(func() { _ = sqlDB.Close() })
+	}
 	if err := db.AutoMigrate(&model.Product{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
@@ -33,7 +37,7 @@ func TestAdminAssets_isKnownProductAsset(t *testing.T) {
 	key := "products/1001/cover/2025/12/24/abc.webp"
 	p := model.Product{
 		Slug:          "style-1001",
-		StyleNo:       1001,
+		StyleNo:       "1001",
 		Season:        "ss25",
 		Category:      "gown",
 		Availability:  "in_stock",

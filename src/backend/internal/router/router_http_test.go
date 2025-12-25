@@ -327,7 +327,7 @@ func TestRouter_PublicAndAdmin_APIs_EndToEnd(t *testing.T) {
 	// Admin: create product (draft).
 	var productID uint
 	{
-		resp := doRequest(t, r, http.MethodPost, "/api/v1/admin/products", []byte(`{"styleNo":1001,"season":"ss25","category":"gown","availability":"in_stock","isNew":true}`), withAuth(jsonHeaders(), adminToken))
+		resp := doRequest(t, r, http.MethodPost, "/api/v1/admin/products", []byte(`{"styleNo":"1001","season":"ss25","category":"gown","availability":"in_stock","isNew":true}`), withAuth(jsonHeaders(), adminToken))
 		if resp.Code != http.StatusCreated {
 			t.Fatalf("expected %d, got %d: %s", http.StatusCreated, resp.Code, resp.Body.String())
 		}

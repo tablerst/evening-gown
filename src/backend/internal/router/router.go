@@ -43,6 +43,7 @@ type Dependencies struct {
 		Updates  *adminHandlers.UpdatesHandler
 		Contacts *adminHandlers.ContactsHandler
 		Events   *adminHandlers.EventsHandler
+		Settings *adminHandlers.SettingsHandler
 		// Middleware applied to protected admin routes.
 		AuthMiddleware gin.HandlerFunc
 	}
@@ -132,7 +133,7 @@ func New(deps Dependencies) *gin.Engine {
 	}
 
 	// Admin backoffice APIs (JWT-protected)
-	if deps.Admin.Auth != nil || deps.Admin.Products != nil || deps.Admin.Updates != nil || deps.Admin.Contacts != nil || deps.Admin.Events != nil {
+	if deps.Admin.Auth != nil || deps.Admin.Products != nil || deps.Admin.Updates != nil || deps.Admin.Contacts != nil || deps.Admin.Events != nil || deps.Admin.Settings != nil {
 		admin := r.Group("/api/v1/admin")
 		if deps.Admin.Auth != nil {
 			// Login is unprotected.
@@ -149,6 +150,10 @@ func New(deps Dependencies) *gin.Engine {
 		}
 		if deps.Admin.Uploads != nil {
 			admin.POST("/uploads/images", deps.Admin.Uploads.UploadImage)
+		}
+		if deps.Admin.Settings != nil {
+			admin.GET("/settings/product-detail-template", deps.Admin.Settings.GetProductDetailTemplate)
+			admin.PUT("/settings/product-detail-template", deps.Admin.Settings.PutProductDetailTemplate)
 		}
 		if deps.Admin.Auth != nil {
 			admin.GET("/me", deps.Admin.Auth.Me)

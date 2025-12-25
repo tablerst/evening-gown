@@ -72,8 +72,8 @@ func main() {
 func seedAll(db *gorm.DB) error {
 	now := time.Now().UTC()
 
-	detail1 := mustJSON(map[string]any{
-		"title_i18n": map[string]any{"zh": "白色幻影礼服", "en": "White Phantom Gown"},
+		detail1 := mustJSON(map[string]any{
+		"title_i18n": map[string]any{"zh": "白色幻影礼服", "en": "FLEURLIS Gown"},
 		"specs": []any{
 			map[string]any{"k": "Fabric", "v": "Silk"},
 			map[string]any{"k": "Color", "v": "Ivory"},
@@ -84,7 +84,7 @@ func seedAll(db *gorm.DB) error {
 	products := []model.Product{
 		{
 			Slug:          "style-9001",
-			StyleNo:       9001,
+			StyleNo:       "9001",
 			Season:        "ss25",
 			Category:      "gown",
 			Availability:  "in_stock",
@@ -98,7 +98,7 @@ func seedAll(db *gorm.DB) error {
 		},
 		{
 			Slug:          "style-9002",
-			StyleNo:       9002,
+			StyleNo:       "9002",
 			Season:        "ss25",
 			Category:      "couture",
 			Availability:  "preorder",
@@ -112,7 +112,7 @@ func seedAll(db *gorm.DB) error {
 		},
 		{
 			Slug:          "style-9003",
-			StyleNo:       9003,
+			StyleNo:       "9003",
 			Season:        "fw25",
 			Category:      "bridal",
 			Availability:  "in_stock",
@@ -128,7 +128,7 @@ func seedAll(db *gorm.DB) error {
 
 	for _, p := range products {
 		if err := upsertProduct(db, p); err != nil {
-			return fmt.Errorf("upsert product styleNo=%d: %w", p.StyleNo, err)
+			return fmt.Errorf("upsert product styleNo=%s: %w", p.StyleNo, err)
 		}
 	}
 

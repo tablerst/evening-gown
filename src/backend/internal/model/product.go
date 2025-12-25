@@ -10,7 +10,7 @@ type Product struct {
 	ID uint `gorm:"primaryKey" json:"id"`
 
 	Slug    string `gorm:"type:text;uniqueIndex" json:"slug"`
-	StyleNo int    `gorm:"uniqueIndex;not null" json:"styleNo"`
+	StyleNo string `gorm:"type:text;uniqueIndex;not null" json:"styleNo"`
 
 	Season       string `gorm:"type:text;not null" json:"season"`       // ss25|fw25
 	Category     string `gorm:"type:text;not null" json:"category"`     // gown|couture|bridal

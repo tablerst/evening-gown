@@ -9,11 +9,12 @@ import { HttpError, resolveApiUrl } from '@/api/http'
 import { adminDelete, adminGet, adminGetBlob, adminPatch, adminPost } from '@/admin/api'
 import { appEnv } from '@/config/env'
 import { compressImageToWebpUnderLimit, uploadAdminImage, type UploadKind } from '@/composables/useAdminImageUpload'
+import { compareStyleNo, isValidStyleNo, normalizeStyleNo } from '@/utils/styleNo'
 
 type Product = {
     id: number
     slug?: string
-    styleNo: number
+    styleNo: string
     season: string
     category: string
     availability: string
@@ -52,7 +53,7 @@ const showEditModal = ref(false)
 const editingId = ref<number | null>(null)
 const editForm = ref({
     slug: '',
-    styleNo: 0,
+    styleNo: '',
     season: 'ss25',
     category: 'gown',
     availability: 'in_stock',
@@ -62,11 +63,11 @@ const editForm = ref({
     coverImageKey: '',
     hoverImage: '',
     hoverImageKey: '',
-    detailJson: '{"specs":[],"option_groups":[]}',
+    detailJson: '{"specs":[{"k":"件数","v":""},{"k":"交付时间","v":""}],"option_groups":[{"name":"颜色","options":[]},{"name":"尺码","options":[]}]}',
 })
 
 const form = ref({
-    styleNo: 0,
+    styleNo: '',
     season: 'ss25',
     category: 'gown',
     availability: 'in_stock',
@@ -76,7 +77,7 @@ const form = ref({
     coverImageKey: '',
     hoverImage: '',
     hoverImageKey: '',
-    detailJson: '{"specs":[],"option_groups":[]}',
+    detailJson: '{"specs":[{"k":"件数","v":""},{"k":"交付时间","v":""}],"option_groups":[{"name":"颜色","options":[]},{"name":"尺码","options":[]}]}',
 })
 
 type UploadSlotState = {
@@ -116,10 +117,14 @@ const onPickImage = async (scope: 'create' | 'edit', kind: UploadKind, e: Event)
     slot.error = ''
     slot.uploading = true
     try {
-        if (!targetForm.styleNo || targetForm.styleNo <= 0) {
+        if (!isValidStyleNo(targetForm.styleNo)) {
             slot.error = t('admin.products.upload.needStyleNo')
             return
         }
+
+        // Normalize once so uploads/keys match backend expectations.
+        const normalizedStyleNo = normalizeStyleNo(targetForm.styleNo)
+        targetForm.styleNo = normalizedStyleNo
 
         const webp = await compressImageToWebpUnderLimit(file, {
             maxBytes: appEnv.maxImageUploadBytes ?? 1048576,
@@ -128,7 +133,7 @@ const onPickImage = async (scope: 'create' | 'edit', kind: UploadKind, e: Event)
         revokePreview(slot)
         slot.previewUrl = URL.createObjectURL(webp)
 
-        const res = await uploadAdminImage(kind, targetForm.styleNo, webp)
+        const res = await uploadAdminImage(kind, normalizedStyleNo, webp)
 
         if (kind === 'cover') {
             targetForm.coverImage = res.url
@@ -150,7 +155,7 @@ const onPickImage = async (scope: 'create' | 'edit', kind: UploadKind, e: Event)
     }
 }
 
-const canSubmit = computed(() => form.value.styleNo > 0)
+const canSubmit = computed(() => isValidStyleNo(form.value.styleNo))
 
 const buildListQuery = (offset: number) => {
     const qs = new URLSearchParams()
@@ -273,9 +278,9 @@ const filteredProducts = computed(() => {
 
     // Client-only sort
     if (sortBy.value === 'style_asc') {
-        items.sort((a, b) => (a.styleNo ?? 0) - (b.styleNo ?? 0))
+        items.sort((a, b) => compareStyleNo(a.styleNo, b.styleNo))
     } else if (sortBy.value === 'style_desc') {
-        items.sort((a, b) => (b.styleNo ?? 0) - (a.styleNo ?? 0))
+        items.sort((a, b) => compareStyleNo(b.styleNo, a.styleNo))
     }
 
     return items
@@ -314,9 +319,16 @@ const create = async () => {
     loading.value = true
     errorMsg.value = ''
     try {
+        const normalizedStyleNo = normalizeStyleNo(form.value.styleNo)
+        if (!isValidStyleNo(normalizedStyleNo)) {
+            errorMsg.value = t('admin.products.upload.needStyleNo')
+            return
+        }
+        form.value.styleNo = normalizedStyleNo
+
         const detail = JSON.parse(form.value.detailJson)
         await adminPost('/api/v1/admin/products', {
-            styleNo: form.value.styleNo,
+            styleNo: normalizedStyleNo,
             season: form.value.season,
             category: form.value.category,
             availability: form.value.availability,
@@ -373,7 +385,7 @@ const startEdit = async (id: number) => {
         editingId.value = id
         editForm.value = {
             slug: p.slug ?? '',
-            styleNo: p.styleNo,
+            styleNo: normalizeStyleNo(p.styleNo),
             season: p.season,
             category: p.category,
             availability: p.availability,
@@ -420,6 +432,13 @@ const saveEdit = async () => {
     loading.value = true
     errorMsg.value = ''
     try {
+        const normalizedStyleNo = normalizeStyleNo(editForm.value.styleNo)
+        if (!isValidStyleNo(normalizedStyleNo)) {
+            errorMsg.value = t('admin.products.upload.needStyleNo')
+            return
+        }
+        editForm.value.styleNo = normalizedStyleNo
+
         let detail: any = undefined
         try {
             detail = JSON.parse(editForm.value.detailJson)
@@ -430,7 +449,7 @@ const saveEdit = async () => {
 
         await adminPatch(`/api/v1/admin/products/${editingId.value}`, {
             slug: editForm.value.slug,
-            styleNo: editForm.value.styleNo,
+            styleNo: normalizedStyleNo,
             season: editForm.value.season,
             category: editForm.value.category,
             availability: editForm.value.availability,
@@ -536,7 +555,7 @@ onMounted(load)
                         </select>
 
                         <NButton size="small" :loading="loading" secondary @click="load">{{ t('admin.actions.refresh')
-                            }}
+                        }}
                         </NButton>
                         <NButton size="small" secondary :disabled="loading" @click="resetFilters">{{
                             t('admin.products.filters.reset') }}</NButton>
@@ -653,7 +672,7 @@ onMounted(load)
             <NForm :show-feedback="false" label-placement="top">
                 <div class="grid md:grid-cols-2 gap-3">
                     <NFormItem :label="t('admin.products.fields.styleNo')">
-                        <NInputNumber v-model:value="form.styleNo" :min="0" />
+                        <NInput v-model:value="form.styleNo" placeholder="EG-1001" :maxlength="64" />
                     </NFormItem>
                     <NFormItem :label="t('admin.products.fields.season')">
                         <NInput v-model:value="form.season" />
@@ -693,7 +712,7 @@ onMounted(load)
                         }}</p>
                         <p v-if="createUpload.cover.error" class="mt-1 font-mono text-xs text-red-600">{{
                             createUpload.cover.error
-                            }}</p>
+                        }}</p>
                         <div v-if="createUpload.cover.previewUrl || form.coverImage" class="mt-2">
                             <img :src="createUpload.cover.previewUrl || resolveApiUrl(form.coverImage)"
                                 class="h-14 w-14 object-cover border border-border" />
@@ -719,7 +738,7 @@ onMounted(load)
                         }}</p>
                         <p v-if="createUpload.hover.error" class="mt-1 font-mono text-xs text-red-600">{{
                             createUpload.hover.error
-                            }}</p>
+                        }}</p>
                         <div v-if="createUpload.hover.previewUrl || form.hoverImage" class="mt-2">
                             <img :src="createUpload.hover.previewUrl || resolveApiUrl(form.hoverImage)"
                                 class="h-14 w-14 object-cover border border-border" />
@@ -734,11 +753,11 @@ onMounted(load)
 
                 <NSpace justify="end" :size="12">
                     <NButton secondary :disabled="loading" @click="showCreateModal = false">{{ t('admin.actions.cancel')
-                    }}
+                        }}
                     </NButton>
                     <NButton type="primary" :loading="loading" :disabled="!canSubmit" @click="create">{{
                         t('admin.actions.create')
-                    }}</NButton>
+                        }}</NButton>
                 </NSpace>
             </NForm>
         </NModal>
@@ -756,7 +775,7 @@ onMounted(load)
                         <NInput v-model:value="editForm.slug" />
                     </NFormItem>
                     <NFormItem :label="t('admin.products.fields.styleNo')">
-                        <NInputNumber v-model:value="editForm.styleNo" :min="0" />
+                        <NInput v-model:value="editForm.styleNo" placeholder="EG-1001" :maxlength="64" />
                     </NFormItem>
                     <NFormItem :label="t('admin.products.fields.season')">
                         <NInput v-model:value="editForm.season" />
@@ -795,7 +814,7 @@ onMounted(load)
                         }) }}</p>
                         <p v-if="editUpload.cover.error" class="mt-1 font-mono text-xs text-red-600">{{
                             editUpload.cover.error
-                            }}</p>
+                        }}</p>
                         <div v-if="editUpload.cover.previewUrl || editForm.coverImage" class="mt-2">
                             <img :src="editUpload.cover.previewUrl || resolveApiUrl(editForm.coverImage)"
                                 class="h-14 w-14 object-cover border border-border" />
@@ -820,7 +839,7 @@ onMounted(load)
                         }) }}</p>
                         <p v-if="editUpload.hover.error" class="mt-1 font-mono text-xs text-red-600">{{
                             editUpload.hover.error
-                            }}</p>
+                        }}</p>
                         <div v-if="editUpload.hover.previewUrl || editForm.hoverImage" class="mt-2">
                             <img :src="editUpload.hover.previewUrl || resolveApiUrl(editForm.hoverImage)"
                                 class="h-14 w-14 object-cover border border-border" />

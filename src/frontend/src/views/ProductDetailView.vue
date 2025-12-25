@@ -4,11 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import { HttpError, httpGet, httpPost, resolveApiUrl } from '@/api/http'
+import { normalizeStyleNo } from '@/utils/styleNo'
 
 type ProductDetail = {
     id: number
     slug: string
-    styleNo: number
+    styleNo: string
     season: string
     category: string
     availability: string
@@ -32,6 +33,10 @@ const productId = computed(() => Number(route.params.id))
 const loading = ref(false)
 const errorMsg = ref('')
 const product = ref<ProductDetail | null>(null)
+
+// Interactive option selections (single-select per option group).
+// Keyed by option group name (e.g. "颜色", "尺码").
+const selectedOptions = ref<Record<string, string>>({})
 
 const posterOpen = ref(false)
 const posterDataUrl = ref('')
@@ -73,6 +78,7 @@ const load = async () => {
         const raw = await httpGet<ProductDetail>(`/api/v1/products/${productId.value}`)
         product.value = {
             ...raw,
+            styleNo: normalizeStyleNo((raw as any)?.styleNo ?? (raw as any)?.style_no ?? ''),
             coverImage: resolveApiUrl(raw.coverImage),
             hoverImage: resolveApiUrl(raw.hoverImage),
         }
@@ -159,6 +165,22 @@ const optionGroups = computed<OptionGroup[]>(() => {
     if (!Array.isArray(raw)) return []
     return raw.map(normalizeOptionGroup).filter(Boolean) as OptionGroup[]
 })
+
+const isOptionSelected = (groupName: string, opt: string) => (selectedOptions.value[groupName] ?? '') === opt
+
+const toggleOption = (groupName: string, opt: string) => {
+    const cur = selectedOptions.value[groupName] ?? ''
+    // Click again to clear.
+    selectedOptions.value[groupName] = cur === opt ? '' : opt
+}
+
+watch(
+    () => product.value?.id,
+    () => {
+        // Reset selections when switching products.
+        selectedOptions.value = {}
+    },
+)
 
 const galleryUrls = computed(() => {
     const urls: string[] = []
@@ -314,7 +336,13 @@ const loadImage = (src: string) =>
         img.src = src
     })
 
-const buildPoster = async (p: ProductDetail) => {
+const buildPoster = async (
+    p: ProductDetail,
+    extra: {
+        selectedOptionLines: string[]
+        specsLines: string[]
+    },
+) => {
     // 3:5 竖版
     const w = 1080
     const h = 1800
@@ -344,7 +372,8 @@ const buildPoster = async (p: ProductDetail) => {
             const imgX = 0
             const imgY = 96
             const imgW = w
-            const imgH = 1320
+            // Leave more space for details (selected options + specs) in the bottom card.
+            const imgH = 1200
             ctx.drawImage(img, imgX, imgY, imgW, imgH)
             // subtle overlay
             ctx.fillStyle = 'rgba(0,2,38,0.10)'
@@ -356,7 +385,7 @@ const buildPoster = async (p: ProductDetail) => {
     }
 
     // bottom info card
-    const cardY = 1460
+    const cardY = 1320
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, cardY, w, h - cardY)
     ctx.strokeStyle = '#e5e7eb'
@@ -374,6 +403,53 @@ const buildPoster = async (p: ProductDetail) => {
     ctx.fillStyle = '#d4af37'
     ctx.font = '800 36px ui-sans-serif, system-ui, -apple-system'
     ctx.fillText(p.priceText || t('product.login'), 48, cardY + 200)
+
+    const wrapText = (text: string, maxWidth: number): string[] => {
+        const out: string[] = []
+        let line = ''
+        for (const ch of Array.from(String(text ?? ''))) {
+            const next = line + ch
+            if (ctx.measureText(next).width > maxWidth && line) {
+                out.push(line)
+                line = ch
+            } else {
+                line = next
+            }
+        }
+        if (line) out.push(line)
+        return out
+    }
+
+    const drawSection = (title: string, lines: string[], startY: number) => {
+        const maxWidth = w - 96
+        let y = startY
+        const maxY = h - 76 // keep room for URL
+
+        if (!lines.length) return y
+
+        ctx.fillStyle = '#111827'
+        ctx.font = '700 22px ui-sans-serif, system-ui, -apple-system'
+        ctx.fillText(title, 48, y)
+        y += 30
+
+        ctx.fillStyle = '#374151'
+        ctx.font = '500 24px ui-sans-serif, system-ui, -apple-system'
+
+        for (const rawLine of lines) {
+            const wrapped = wrapText(`• ${rawLine}`, maxWidth)
+            for (const ln of wrapped) {
+                if (y > maxY) return y
+                ctx.fillText(ln, 48, y)
+                y += 32
+            }
+        }
+        return y
+    }
+
+    let yCursor = cardY + 252
+    yCursor = drawSection(t('productDetail.sections.options'), extra.selectedOptionLines, yCursor)
+    yCursor += 16
+    yCursor = drawSection(t('productDetail.sections.specs'), extra.specsLines, yCursor)
 
     // link
     ctx.fillStyle = '#111827'
@@ -393,7 +469,18 @@ const openPoster = async () => {
     if (!p || typeof window === 'undefined') return
 
     try {
-        const { dataUrl, meta } = await buildPoster(p)
+        const selectedOptionLines = optionGroups.value
+            .map((g) => {
+                const picked = selectedOptions.value[g.name] ?? ''
+                return picked ? `${g.name}: ${picked}` : ''
+            })
+            .filter(Boolean)
+
+        const specsLines = specs.value
+            .filter((s) => String(s.value ?? '').trim() !== '')
+            .map((s) => `${s.label}: ${s.value}`)
+
+        const { dataUrl, meta } = await buildPoster(p, { selectedOptionLines, specsLines })
         posterDataUrl.value = dataUrl
         posterOpen.value = true
 
@@ -409,6 +496,10 @@ const openPoster = async () => {
             payload: {
                 poster: meta,
                 locale: locale.value,
+                selections: {
+                    options: selectedOptionLines,
+                    specs: specsLines,
+                },
             },
         })
     } catch {
@@ -499,10 +590,14 @@ onMounted(load)
                                     <div class="font-mono text-xs uppercase tracking-[0.22em] text-black/50">
                                         {{ g.name }}</div>
                                     <div class="mt-2 flex flex-wrap gap-2">
-                                        <span v-for="opt in g.options" :key="opt"
-                                            class="px-2.5 py-1 border border-border bg-white text-xs">
+                                        <button v-for="opt in g.options" :key="opt" type="button"
+                                            @click="toggleOption(g.name, opt)"
+                                            :aria-pressed="isOptionSelected(g.name, opt)"
+                                            class="px-2.5 py-1 border text-xs transition-colors" :class="isOptionSelected(g.name, opt)
+                                                ? 'bg-brand text-white border-brand'
+                                                : 'bg-white border-border hover:border-black'">
                                             {{ opt }}
-                                        </span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>

@@ -3,7 +3,6 @@ package public
 import (
 	"net/http"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -152,8 +151,8 @@ func (h *AssetsHandler) isPublishedProductAsset(c *gin.Context, objectKey string
 	if len(parts) < 2 {
 		return false, nil
 	}
-	styleNo, err := strconv.Atoi(strings.TrimSpace(parts[1]))
-	if err != nil || styleNo <= 0 {
+	styleNo, err := model.NormalizeStyleNo(strings.TrimSpace(parts[1]))
+	if err != nil {
 		return false, nil
 	}
 

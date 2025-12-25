@@ -136,6 +136,7 @@ func Run() error {
 		deps.Admin.Updates = adminHandlers.NewUpdatesHandler(db, publicCache)
 		deps.Admin.Contacts = adminHandlers.NewContactsHandler(db)
 		deps.Admin.Events = adminHandlers.NewEventsHandler(db)
+		deps.Admin.Settings = adminHandlers.NewSettingsHandler(db)
 		deps.Admin.AuthMiddleware = middleware.AdminAuth(db, jwtSvc)
 	} else {
 		logger.Info("business APIs disabled: postgres not configured")

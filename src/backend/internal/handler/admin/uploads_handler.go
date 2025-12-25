@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"evening-gown/internal/config"
+	"evening-gown/internal/model"
 	"evening-gown/internal/storage"
 
 	"github.com/gin-gonic/gin"
@@ -62,8 +62,8 @@ func (h *UploadsHandler) UploadImage(c *gin.Context) {
 	}
 
 	styleNoRaw := strings.TrimSpace(c.PostForm("styleNo"))
-	styleNo, err := strconv.Atoi(styleNoRaw)
-	if err != nil || styleNo <= 0 {
+	styleNo, err := model.NormalizeStyleNo(styleNoRaw)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid styleNo"})
 		return
 	}
@@ -110,7 +110,7 @@ func (h *UploadsHandler) UploadImage(c *gin.Context) {
 	ctx := c.Request.Context()
 	now := time.Now().UTC()
 	objectKey := fmt.Sprintf(
-		"products/%d/%s/%04d/%02d/%02d/%s.webp",
+		"products/%s/%s/%04d/%02d/%02d/%s.webp",
 		styleNo,
 		kind,
 		now.Year(),

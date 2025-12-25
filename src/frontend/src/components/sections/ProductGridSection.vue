@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import { useProducts, type Availability, type Category, type Product, type Season } from '@/composables/useProducts'
+import { compareStyleNo } from '@/utils/styleNo'
 
 const { t, te } = useI18n()
 const router = useRouter()
@@ -144,8 +145,8 @@ const filteredProducts = computed(() => {
 
 const sortedProducts = computed(() => {
     const list = [...filteredProducts.value]
-    if (sortKey.value === 'style_asc') list.sort((a, b) => a.styleNo - b.styleNo)
-    if (sortKey.value === 'style_desc') list.sort((a, b) => b.styleNo - a.styleNo)
+    if (sortKey.value === 'style_asc') list.sort((a, b) => compareStyleNo(a.styleNo, b.styleNo))
+    if (sortKey.value === 'style_desc') list.sort((a, b) => compareStyleNo(b.styleNo, a.styleNo))
     if (sortKey.value === 'newest') list.sort((a, b) => Number(b.isNew) - Number(a.isNew) || b.id - a.id)
     return list
 })
@@ -275,9 +276,9 @@ const goDetail = (id: number) => {
                             <div class="flex flex-col min-w-0">
                                 <div class="flex items-center gap-2">
                                     <span class="font-bold text-black truncate">{{ t('product.style', { id: p.styleNo })
-                                        }}</span>
+                                    }}</span>
                                     <span v-if="p.isNew" class="text-brand uppercase tracking-wider">{{ newBadgeText
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div class="mt-1 flex items-center gap-3 text-gray-500">
                                     <span class="text-black">{{ labelSeason(p.season) }}</span>

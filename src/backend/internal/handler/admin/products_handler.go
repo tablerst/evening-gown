@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -27,7 +28,7 @@ func NewProductsHandler(db *gorm.DB, publicCache *cache.PublicCache) *ProductsHa
 
 type productCreateRequest struct {
 	Slug         string `json:"slug"`
-	StyleNo      int    `json:"styleNo" binding:"required"`
+	StyleNo      string `json:"styleNo" binding:"required"`
 	Season       string `json:"season" binding:"required"`
 	Category     string `json:"category" binding:"required"`
 	Availability string `json:"availability" binding:"required"`
@@ -44,7 +45,7 @@ type productCreateRequest struct {
 
 type productUpdateRequest struct {
 	Slug         *string `json:"slug"`
-	StyleNo      *int    `json:"styleNo"`
+	StyleNo      *string `json:"styleNo"`
 	Season       *string `json:"season"`
 	Category     *string `json:"category"`
 	Availability *string `json:"availability"`
@@ -133,9 +134,17 @@ func (h *ProductsHandler) Create(c *gin.Context) {
 		return
 	}
 
+	styleNo, err := model.NormalizeStyleNo(req.StyleNo)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid styleNo"})
+		return
+	}
+
 	slug := strings.TrimSpace(req.Slug)
 	if slug == "" {
-		slug = "style-" + strconv.Itoa(req.StyleNo)
+		// Keep a stable default slug.
+		// styleNo is already validated as [A-Z0-9-], so a simple lower-case is safe.
+		slug = "style-" + strings.ToLower(styleNo)
 	}
 
 	isNew := false
@@ -147,9 +156,17 @@ func (h *ProductsHandler) Create(c *gin.Context) {
 		newRank = *req.NewRank
 	}
 
+	ctx := c.Request.Context()
+	tpl := h.loadProductDetailTemplate(ctx)
+	mergedDetail, err := model.MergeProductDetailWithTemplate(tpl, req.Detail)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid detail"})
+		return
+	}
+
 	p := model.Product{
 		Slug:          slug,
-		StyleNo:       req.StyleNo,
+		StyleNo:       styleNo,
 		Season:        req.Season,
 		Category:      req.Category,
 		Availability:  req.Availability,
@@ -160,10 +177,10 @@ func (h *ProductsHandler) Create(c *gin.Context) {
 		HoverImageURL: strings.TrimSpace(req.HoverImageURL),
 		HoverImageKey: strings.TrimSpace(req.HoverImageKey),
 		PriceMode:     "negotiable",
-		DetailJSON:    req.Detail,
+		DetailJSON:    mergedDetail,
 	}
 
-	if err := h.db.WithContext(c.Request.Context()).Create(&p).Error; err != nil {
+	if err := h.db.WithContext(ctx).Create(&p).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -231,8 +248,13 @@ func (h *ProductsHandler) Update(c *gin.Context) {
 		}
 	}
 	if req.StyleNo != nil {
-		if *req.StyleNo != 0 {
-			updates["style_no"] = *req.StyleNo
+		if s := strings.TrimSpace(*req.StyleNo); s != "" {
+			norm, err := model.NormalizeStyleNo(s)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid styleNo"})
+				return
+			}
+			updates["style_no"] = norm
 		}
 	}
 	if req.Season != nil {
@@ -269,7 +291,13 @@ func (h *ProductsHandler) Update(c *gin.Context) {
 		updates["hover_image_key"] = strings.TrimSpace(*req.HoverImageKey)
 	}
 	if req.Detail != nil {
-		updates["detail_json"] = *req.Detail
+		tpl := h.loadProductDetailTemplate(ctx)
+		merged, err := model.MergeProductDetailWithTemplate(tpl, *req.Detail)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid detail"})
+			return
+		}
+		updates["detail_json"] = merged
 	}
 
 	if len(updates) == 0 {
@@ -290,6 +318,26 @@ func (h *ProductsHandler) Update(c *gin.Context) {
 	}
 
 	h.Get(c)
+}
+
+func (h *ProductsHandler) loadProductDetailTemplate(ctx context.Context) json.RawMessage {
+	// Default fallback
+	fallback := model.DefaultProductDetailTemplate()
+	if h == nil || h.db == nil {
+		return fallback
+	}
+
+	var s model.AppSetting
+	err := h.db.WithContext(ctx).
+		Where("key = ?", model.SettingKeyProductDetailTemplate).
+		First(&s).Error
+	if err != nil {
+		return fallback
+	}
+	if len(s.ValueJSON) == 0 {
+		return fallback
+	}
+	return s.ValueJSON
 }
 
 func (h *ProductsHandler) Publish(c *gin.Context) {

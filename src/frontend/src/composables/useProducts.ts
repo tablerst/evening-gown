@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 
 import { httpGet, resolveApiUrl } from '@/api/http'
+import { normalizeStyleNo } from '@/utils/styleNo'
 
 export type Availability = 'in_stock' | 'preorder' | 'archived'
 export type Season = 'ss25' | 'fw25'
@@ -8,7 +9,7 @@ export type Category = 'gown' | 'couture' | 'bridal'
 
 export type Product = {
     id: number
-    styleNo: number
+    styleNo: string
     season: Season
     category: Category
     availability: Availability
@@ -36,7 +37,7 @@ let inflightLimit = 0
 const normalizeProduct = (raw: any): Product => {
     return {
         id: Number(raw?.id ?? 0),
-        styleNo: Number(raw?.styleNo ?? raw?.style_no ?? 0),
+        styleNo: normalizeStyleNo(raw?.styleNo ?? raw?.style_no ?? ''),
         season: raw?.season as Season,
         category: raw?.category as Category,
         availability: raw?.availability as Availability,

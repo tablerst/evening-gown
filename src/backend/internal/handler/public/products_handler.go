@@ -32,7 +32,7 @@ const (
 
 type productListItem struct {
 	ID           uint   `json:"id"`
-	StyleNo      int    `json:"styleNo"`
+	StyleNo      string `json:"styleNo"`
 	Season       string `json:"season"`
 	Category     string `json:"category"`
 	Availability string `json:"availability"`
