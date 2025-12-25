@@ -86,9 +86,32 @@
     }
   },
   "productDetail": {
+    "routeTitle": "Product · White Phantom",
+    "titlePrefix": "STYLE",
     "back": "Back",
     "loading": "Loading…",
     "error": "Failed to load",
+    "priceLabel": "Pricing",
+    "priceNote": "Wholesale & custom orders. Price on request; lead time and options confirmed by the atelier.",
+    "metaDescriptionFallback": "White Phantom gown. Wholesale & custom orders. Price on request.",
+    "ctaPrimary": "Contact atelier",
+    "copyLink": "Copy link",
+    "copySuccess": "Link copied",
+    "copyFail": "Copy failed",
+    "sections": {
+      "overview": "Overview",
+      "options": "Options",
+      "specs": "Specifications",
+      "service": "Service & delivery"
+    },
+    "service": {
+      "items": {
+        "appointment": "By appointment / inquiry only",
+        "leadTime": "Lead time confirmed after requirements review",
+        "showroom": "Private showroom visit available for partners",
+        "shipping": "Packaging and shipment arranged by request"
+      }
+    },
     "generatePoster": "Generate poster",
     "downloadPoster": "Download poster",
     "posterTitle": "Poster",

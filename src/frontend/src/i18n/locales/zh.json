@@ -86,9 +86,32 @@
     }
   },
   "productDetail": {
+    "routeTitle": "商品详情 · White Phantom",
+    "titlePrefix": "款号",
     "back": "返回",
     "loading": "加载中…",
     "error": "加载失败",
+    "priceLabel": "价格",
+    "priceNote": "默认价格面议；具体交期与可选配置以沟通确认为准。",
+    "metaDescriptionFallback": "White Phantom 礼服。支持批发与定制，价格面议。",
+    "ctaPrimary": "预约 / 咨询",
+    "copyLink": "复制链接",
+    "copySuccess": "链接已复制",
+    "copyFail": "复制失败",
+    "sections": {
+      "overview": "概览",
+      "options": "可选配置",
+      "specs": "参数",
+      "service": "交付与服务"
+    },
+    "service": {
+      "items": {
+        "appointment": "仅限预约 / 询价",
+        "leadTime": "确认需求后同步交期与方案",
+        "showroom": "支持预约到访与私享看样",
+        "shipping": "包装与出货可按需求安排"
+      }
+    },
     "generatePoster": "生成分享海报",
     "downloadPoster": "下载海报",
     "posterTitle": "分享海报",

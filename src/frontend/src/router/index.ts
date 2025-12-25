@@ -31,7 +31,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/ProductDetailView.vue'),
         meta: {
             layout: 'default',
-            title: 'Product · White Phantom',
+            titleKey: 'productDetail.routeTitle',
         },
     },
     {
