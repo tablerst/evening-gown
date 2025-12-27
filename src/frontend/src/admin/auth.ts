@@ -1,4 +1,4 @@
-import { HttpError, httpGet, httpPatch, httpPost } from '@/api/http'
+import { httpPost } from '@/api/http'
 
 const TOKEN_KEY = 'admin_token'
 const REFRESH_TOKEN_KEY = 'admin_refresh_token'
@@ -44,42 +44,4 @@ export const adminRefresh = async () => {
     setAdminToken(res.token)
     setAdminRefreshToken(res.refresh_token)
     return res
-}
-
-let refreshInFlight: Promise<void> | null = null
-const ensureRefreshed = async () => {
-    if (refreshInFlight) return refreshInFlight
-    refreshInFlight = (async () => {
-        await adminRefresh()
-    })().finally(() => {
-        refreshInFlight = null
-    })
-    return refreshInFlight
-}
-
-const withAccess = async <T>(fn: (token: string) => Promise<T>): Promise<T> => {
-    try {
-        return await fn(getAdminToken())
-    } catch (e) {
-        if (e instanceof HttpError && e.status === 401) {
-            await ensureRefreshed()
-            return await fn(getAdminToken())
-        }
-        throw e
-    }
-}
-
-export const adminMe = async () => {
-    return withAccess((token) => httpGet<{ id: number; email: string; role: string }>('/api/v1/admin/me', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-    }))
-}
-
-export const adminChangePassword = async (oldPassword: string, newPassword: string) => {
-    return withAccess((token) => httpPatch<{ ok: boolean }>('/api/v1/admin/me/password', {
-        oldPassword,
-        newPassword,
-    }, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-    }))
 }

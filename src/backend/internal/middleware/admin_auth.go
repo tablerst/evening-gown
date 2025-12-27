@@ -18,20 +18,33 @@ const ContextUserKey = "auth.user"
 func AdminAuth(db *gorm.DB, jwtSvc *auth.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if db == nil || jwtSvc == nil {
-			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "admin auth unavailable"})
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
+				"code":    "service_unavailable",
+				"message": "admin auth unavailable",
+				// Backward compatibility for older frontend code.
+				"error": "admin auth unavailable",
+			})
 			return
 		}
 
 		token := tokenFromRequest(c)
 		claims, err := jwtSvc.ParseAdminToken(token)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    "unauthorized",
+				"message": "unauthorized",
+				"error":   "unauthorized",
+			})
 			return
 		}
 
 		uid, err := strconv.ParseUint(strings.TrimSpace(claims.Subject), 10, 64)
 		if err != nil || uid == 0 {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    "unauthorized",
+				"message": "unauthorized",
+				"error":   "unauthorized",
+			})
 			return
 		}
 
@@ -39,11 +52,19 @@ func AdminAuth(db *gorm.DB, jwtSvc *auth.Service) gin.HandlerFunc {
 		// NOTE: model.User uses a manual DeletedAt *time.Time, not gorm.DeletedAt.
 		// We must explicitly filter soft-deleted users.
 		if err := db.WithContext(c.Request.Context()).Where("id = ? AND deleted_at IS NULL", uint(uid)).First(&user).Error; err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    "unauthorized",
+				"message": "unauthorized",
+				"error":   "unauthorized",
+			})
 			return
 		}
 		if user.Role != "admin" || user.Status != "active" {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"code":    "forbidden",
+				"message": "forbidden",
+				"error":   "forbidden",
+			})
 			return
 		}
 
@@ -59,7 +80,11 @@ func AdminAuth(db *gorm.DB, jwtSvc *auth.Service) gin.HandlerFunc {
 
 			if claims.PasswordUpdatedAt != 0 {
 				if claims.PasswordUpdatedAt != dbPwdAt {
-					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+						"code":    "unauthorized",
+						"message": "unauthorized",
+						"error":   "unauthorized",
+					})
 					return
 				}
 			} else if user.PasswordUpdatedAt != nil {
@@ -69,7 +94,11 @@ func AdminAuth(db *gorm.DB, jwtSvc *auth.Service) gin.HandlerFunc {
 					issuedAt = claims.IssuedAt.Time
 				}
 				if issuedAt.IsZero() || issuedAt.Before(user.PasswordUpdatedAt.UTC()) {
-					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+						"code":    "unauthorized",
+						"message": "unauthorized",
+						"error":   "unauthorized",
+					})
 					return
 				}
 			}

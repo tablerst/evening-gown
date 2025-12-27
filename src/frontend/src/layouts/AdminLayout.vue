@@ -6,7 +6,8 @@ import { useI18n } from 'vue-i18n'
 import type { MenuOption } from 'naive-ui'
 import { NButton, NCard, NConfigProvider, NDivider, NForm, NFormItem, NInput, NLayout, NLayoutContent, NLayoutHeader, NLayoutSider, NMenu, NModal, NSpace, createDiscreteApi, dateEnUS, dateZhCN, enUS, zhCN } from 'naive-ui'
 
-import { adminMe, adminChangePassword, setAdminToken } from '@/admin/auth'
+import { setAdminRefreshToken, setAdminToken } from '@/admin/auth'
+import { adminGet, adminPatch } from '@/admin/api'
 import { adminThemeOverrides } from '@/admin/theme'
 import { HttpError } from '@/api/http'
 import { setLocale } from '@/i18n'
@@ -71,6 +72,7 @@ const onMenuUpdate = async (key: string) => {
 
 const forceLogout = async () => {
     setAdminToken('')
+    setAdminRefreshToken('')
     await router.replace({ name: 'admin-login' })
 }
 
@@ -87,7 +89,7 @@ onBeforeUnmount(() => {
 
 onMounted(async () => {
     try {
-        me.value = await adminMe()
+        me.value = await adminGet<{ id: number; email: string; role: string }>('/api/v1/admin/me')
     } catch (e) {
         if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {
             await forceLogout()
@@ -131,7 +133,10 @@ const submitChangePassword = async () => {
 
     changing.value = true
     try {
-        await adminChangePassword(oldPassword, newPassword)
+        await adminPatch<{ ok: boolean }>('/api/v1/admin/me/password', {
+            oldPassword,
+            newPassword,
+        })
         showChangePassword.value = false
         message.success(t('admin.password.success'))
         await forceLogout()

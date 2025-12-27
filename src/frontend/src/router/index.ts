@@ -139,12 +139,26 @@ router.beforeEach((to) => {
         return { name: 'home', replace: true }
     }
 
-    // Admin routes guard (simple token check).
+    // Admin routes guard.
+    // Strategy: backend always returns 401; frontend is responsible for redirecting to login.
+    // Here we only guard navigation when there is no access token at all.
     if (typeof to.path === 'string' && to.path.startsWith('/admin')) {
-        if (to.name === 'admin-login') return
         const token = getAdminToken()
+
+        // If already logged in, avoid staying on login page.
+        if (to.name === 'admin-login') {
+            if (token) {
+                const ru = typeof to.query?.returnUrl === 'string' ? (to.query.returnUrl as string) : ''
+                if (ru && ru.startsWith('/admin') && ru !== '/admin/login') {
+                    return { path: ru, replace: true }
+                }
+                return { name: 'admin-home', replace: true }
+            }
+            return
+        }
+
         if (!token) {
-            return { name: 'admin-login', replace: true }
+            return { name: 'admin-login', query: { returnUrl: to.fullPath }, replace: true }
         }
     }
 })

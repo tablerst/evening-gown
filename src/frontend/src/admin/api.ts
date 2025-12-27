@@ -6,7 +6,9 @@ const handleAdminAuthExpired = () => {
     setAdminToken('')
     setAdminRefreshToken('')
     if (typeof window !== 'undefined') {
-        window.location.replace('/admin/login')
+        const returnUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
+        const qs = returnUrl ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''
+        window.location.replace(`/admin/login${qs}`)
     }
 }
 

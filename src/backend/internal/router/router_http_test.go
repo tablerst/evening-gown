@@ -231,6 +231,14 @@ func TestRouter_PublicAndAdmin_APIs_EndToEnd(t *testing.T) {
 
 	r := New(deps)
 
+	// Admin: protected routes must reject missing Authorization.
+	{
+		resp := doRequest(t, r, http.MethodGet, "/api/v1/admin/me", nil, nil)
+		if resp.Code != http.StatusUnauthorized {
+			t.Fatalf("expected %d, got %d: %s", http.StatusUnauthorized, resp.Code, resp.Body.String())
+		}
+	}
+
 	// Public: contacts validation.
 	{
 		resp := doRequest(t, r, http.MethodPost, "/api/v1/contacts", []byte(`{"name":"a"}`), jsonHeaders())

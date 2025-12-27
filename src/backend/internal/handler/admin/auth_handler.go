@@ -41,7 +41,11 @@ type changePasswordRequest struct {
 
 func (h *AuthHandler) Login(c *gin.Context) {
 	if h == nil || h.db == nil || h.jwtSvc == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service unavailable"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"code":    "service_unavailable",
+			"message": "service unavailable",
+			"error":   "service unavailable",
+		})
 		return
 	}
 
@@ -61,15 +65,27 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	var user model.User
 	if err := h.db.WithContext(c.Request.Context()).Where("email = ? AND deleted_at IS NULL", email).First(&user).Error; err != nil {
 		// Avoid leaking which part failed.
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    "invalid_credentials",
+			"message": "invalid credentials",
+			"error":   "invalid credentials",
+		})
 		return
 	}
 	if user.Role != "admin" || user.Status != "active" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    "invalid_credentials",
+			"message": "invalid credentials",
+			"error":   "invalid credentials",
+		})
 		return
 	}
 	if !security.CheckPassword(user.PasswordHash, password) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    "invalid_credentials",
+			"message": "invalid credentials",
+			"error":   "invalid credentials",
+		})
 		return
 	}
 
@@ -90,14 +106,22 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	accessToken, accessExp, err := h.jwtSvc.IssueAdminToken(strconv.FormatUint(uint64(user.ID), 10), pwdAt)
 	if err != nil {
 		logging.ErrorWithStack(logging.FromGin(c), "admin issue token failed", err, "user_id", user.ID)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "issue token failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "issue_token_failed",
+			"message": "issue token failed",
+			"error":   "issue token failed",
+		})
 		return
 	}
 
 	refreshToken, refreshExp, err := h.jwtSvc.IssueAdminRefreshToken(strconv.FormatUint(uint64(user.ID), 10), pwdAt)
 	if err != nil {
 		logging.ErrorWithStack(logging.FromGin(c), "admin issue refresh token failed", err, "user_id", user.ID)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "issue token failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "issue_token_failed",
+			"message": "issue token failed",
+			"error":   "issue token failed",
+		})
 		return
 	}
 
@@ -113,7 +137,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // Route: POST /api/v1/admin/auth/refresh
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	if h == nil || h.db == nil || h.jwtSvc == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service unavailable"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"code":    "service_unavailable",
+			"message": "service unavailable",
+			"error":   "service unavailable",
+		})
 		return
 	}
 
@@ -125,29 +153,49 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 	rt := strings.TrimSpace(req.RefreshToken)
 	if rt == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid refresh_token"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    "invalid_refresh_token",
+			"message": "invalid refresh_token",
+			"error":   "invalid refresh_token",
+		})
 		return
 	}
 
 	claims, err := h.jwtSvc.ParseAdminRefreshToken(rt)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    "unauthorized",
+			"message": "unauthorized",
+			"error":   "unauthorized",
+		})
 		return
 	}
 
 	uid, err := strconv.ParseUint(strings.TrimSpace(claims.Subject), 10, 64)
 	if err != nil || uid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    "unauthorized",
+			"message": "unauthorized",
+			"error":   "unauthorized",
+		})
 		return
 	}
 
 	var user model.User
 	if err := h.db.WithContext(c.Request.Context()).Where("id = ? AND deleted_at IS NULL", uint(uid)).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    "unauthorized",
+			"message": "unauthorized",
+			"error":   "unauthorized",
+		})
 		return
 	}
 	if user.Role != "admin" || user.Status != "active" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		c.JSON(http.StatusForbidden, gin.H{
+			"code":    "forbidden",
+			"message": "forbidden",
+			"error":   "forbidden",
+		})
 		return
 	}
 
@@ -159,7 +207,11 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		}
 		if claims.PasswordUpdatedAt != 0 {
 			if claims.PasswordUpdatedAt != dbPwdAt {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"code":    "unauthorized",
+					"message": "unauthorized",
+					"error":   "unauthorized",
+				})
 				return
 			}
 		} else if user.PasswordUpdatedAt != nil {
@@ -168,7 +220,11 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 				issuedAt = claims.IssuedAt.Time
 			}
 			if issuedAt.IsZero() || issuedAt.Before(user.PasswordUpdatedAt.UTC()) {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"code":    "unauthorized",
+					"message": "unauthorized",
+					"error":   "unauthorized",
+				})
 				return
 			}
 		}
@@ -177,11 +233,19 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	// Refresh token rotation guard: reject refresh tokens older than the latest issued marker.
 	if user.RefreshTokenIssuedAt != nil {
 		if claims.IssuedAt == nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    "unauthorized",
+				"message": "unauthorized",
+				"error":   "unauthorized",
+			})
 			return
 		}
 		if claims.IssuedAt.Time.UTC().Unix() < user.RefreshTokenIssuedAt.UTC().Unix() {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    "unauthorized",
+				"message": "unauthorized",
+				"error":   "unauthorized",
+			})
 			return
 		}
 	}
@@ -200,14 +264,22 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	accessToken, accessExp, err := h.jwtSvc.IssueAdminToken(strconv.FormatUint(uint64(user.ID), 10), pwdAt)
 	if err != nil {
 		logging.ErrorWithStack(logging.FromGin(c), "admin issue token failed", err, "user_id", user.ID)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "issue token failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "issue_token_failed",
+			"message": "issue token failed",
+			"error":   "issue token failed",
+		})
 		return
 	}
 
 	refreshToken, refreshExp, err := h.jwtSvc.IssueAdminRefreshToken(strconv.FormatUint(uint64(user.ID), 10), pwdAt)
 	if err != nil {
 		logging.ErrorWithStack(logging.FromGin(c), "admin issue refresh token failed", err, "user_id", user.ID)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "issue token failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "issue_token_failed",
+			"message": "issue token failed",
+			"error":   "issue token failed",
+		})
 		return
 	}
 
@@ -222,12 +294,20 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 func (h *AuthHandler) Me(c *gin.Context) {
 	u, ok := c.Get(middleware.ContextUserKey)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    "unauthorized",
+			"message": "unauthorized",
+			"error":   "unauthorized",
+		})
 		return
 	}
 	user, ok := u.(model.User)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    "unauthorized",
+			"message": "unauthorized",
+			"error":   "unauthorized",
+		})
 		return
 	}
 
@@ -242,18 +322,30 @@ func (h *AuthHandler) Me(c *gin.Context) {
 // After success, old tokens will be rejected by AdminAuth middleware via PasswordUpdatedAt.
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	if h == nil || h.db == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service unavailable"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"code":    "service_unavailable",
+			"message": "service unavailable",
+			"error":   "service unavailable",
+		})
 		return
 	}
 
 	u, ok := c.Get(middleware.ContextUserKey)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    "unauthorized",
+			"message": "unauthorized",
+			"error":   "unauthorized",
+		})
 		return
 	}
 	user, ok := u.(model.User)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    "unauthorized",
+			"message": "unauthorized",
+			"error":   "unauthorized",
+		})
 		return
 	}
 
@@ -302,7 +394,11 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		"updated_at":          now,
 	}).Error; err != nil {
 		logging.ErrorWithStack(logging.FromGin(c), "admin change password failed", err, "user_id", user.ID)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "change password failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "change_password_failed",
+			"message": "change password failed",
+			"error":   "change password failed",
+		})
 		return
 	}
 

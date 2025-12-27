@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import { HttpError } from '@/api/http'
@@ -8,6 +9,7 @@ import { adminLogin } from '@/admin/auth'
 import { setLocale } from '@/i18n'
 
 const router = useRouter()
+const route = useRoute()
 const { t, locale } = useI18n()
 
 const localeToggleLabel = computed(() => (locale.value === 'zh' ? t('admin.language.toEn') : t('admin.language.toZh')))
@@ -22,7 +24,14 @@ const submit = async () => {
     loading.value = true
     try {
         await adminLogin(email.value, password.value)
-        await router.replace({ name: 'admin-home' })
+
+        const ru = typeof route.query?.returnUrl === 'string' ? (route.query.returnUrl as string) : ''
+        // Prevent open redirect: only allow internal admin paths.
+        if (ru && ru.startsWith('/admin') && ru !== '/admin/login') {
+            await router.replace(ru)
+        } else {
+            await router.replace({ name: 'admin-home' })
+        }
     } catch (e) {
         if (e instanceof HttpError) {
             errorMsg.value = t('admin.login.errorInvalid')
@@ -56,7 +65,7 @@ const toggleLocale = () => {
             <div class="mt-8 space-y-4">
                 <label class="block">
                     <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/60">{{ t('admin.login.email')
-                        }}</div>
+                    }}</div>
                     <input v-model.trim="email" type="email" autocomplete="username"
                         class="mt-2 w-full h-10 px-3 border border-border focus:outline-none" />
                 </label>
