@@ -18,6 +18,7 @@ import {
 import draggable from 'vuedraggable'
 
 import { HttpError, resolveApiUrl } from '@/api/http'
+import { adminGetBlob } from '@/admin/api'
 import { compressImageToWebpUnderLimit, uploadAdminImage } from '@/composables/useAdminImageUpload'
 import { isValidStyleNo, normalizeStyleNo } from '@/utils/styleNo'
 
@@ -66,13 +67,46 @@ const galleryThumbSrc = (g: any): string => {
         if (local) return local
     }
 
-    const objectKey = String(g?.objectKey ?? '').replace(/^\/+/, '').trim()
-    if (objectKey) return resolveApiUrl(`/api/v1/admin/assets/${objectKey}`)
-
+    // Prefer the persisted public URL when available.
+    // Note: for draft (unpublished) products, /api/v1/assets/* may 404 by design.
+    // In that case, we fall back to fetching via protected /api/v1/admin/assets/*
+    // and cache it into galleryPreviewUrls (see onGalleryImgError).
     const url = String(g?.url ?? '').trim()
     if (url) return resolveApiUrl(url)
 
+    const objectKey = String(g?.objectKey ?? '').replace(/^\/+/, '').trim()
+    if (objectKey) return resolveApiUrl(`/api/v1/assets/${objectKey}`)
+
     return ''
+}
+
+// Avoid repeated failing fetch attempts for the same image.
+const galleryFetchFailures = ref<Record<string, boolean>>({})
+
+const onGalleryImgError = async (g: any) => {
+    const id = String(g?.id ?? '').trim()
+    if (!id) return
+    // If we already have a local/object preview, no need to recover.
+    if (galleryPreviewUrls.value[id]) return
+    if (galleryFetchFailures.value[id]) return
+
+    const objectKey = String(g?.objectKey ?? '').replace(/^\/+/, '').trim()
+    if (!objectKey) return
+
+    try {
+        const blob = await adminGetBlob(`/api/v1/admin/assets/${objectKey}`)
+        revokeGalleryPreview(id)
+        galleryPreviewUrls.value = {
+            ...galleryPreviewUrls.value,
+            [id]: URL.createObjectURL(blob),
+        }
+    } catch {
+        // Mark as failed so we don't keep retrying on every re-render.
+        galleryFetchFailures.value = {
+            ...galleryFetchFailures.value,
+            [id]: true,
+        }
+    }
 }
 
 const syncingFromParent = ref(false)
@@ -254,12 +288,12 @@ const gallery = computed<any[]>({
         for (const it of g) {
             if (!it || typeof it !== 'object') continue
             if (typeof (it as any).id === 'string' && String((it as any).id).trim()) continue
-            ;(it as any).id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `img_${Date.now()}_${Math.random().toString(16).slice(2)}`
+                ; (it as any).id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `img_${Date.now()}_${Math.random().toString(16).slice(2)}`
         }
         return g
     },
     set: (next) => {
-        ;(detail.value as any).gallery = next
+        ; (detail.value as any).gallery = next
     },
 })
 
@@ -327,7 +361,7 @@ const specs = computed<any[]>({
         return Array.isArray(raw) ? raw : []
     },
     set: (next) => {
-        ;(detail.value as any).specs = next
+        ; (detail.value as any).specs = next
     },
 })
 
@@ -354,7 +388,7 @@ const optionGroups = computed<any[]>({
         return Array.isArray(raw) ? raw : []
     },
     set: (next) => {
-        ;(detail.value as any).option_groups = next
+        ; (detail.value as any).option_groups = next
     },
 })
 
@@ -469,18 +503,14 @@ const resetToVisualNormalized = () => {
                                     <div>
                                         <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">ZH
                                         </div>
-                                        <NInput
-                                            :value="(element as any).title_i18n?.zh || ''"
-                                            :disabled="disabled"
+                                        <NInput :value="(element as any).title_i18n?.zh || ''" :disabled="disabled"
                                             @update:value="(v) => { (element as any).title_i18n = (element as any).title_i18n || {}; (element as any).title_i18n.zh = v }"
                                             :placeholder="t('admin.products.detailEditor.placeholders.titleZh')" />
                                     </div>
                                     <div>
                                         <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">EN
                                         </div>
-                                        <NInput
-                                            :value="(element as any).title_i18n?.en || ''"
-                                            :disabled="disabled"
+                                        <NInput :value="(element as any).title_i18n?.en || ''" :disabled="disabled"
                                             @update:value="(v) => { (element as any).title_i18n = (element as any).title_i18n || {}; (element as any).title_i18n.en = v }"
                                             :placeholder="t('admin.products.detailEditor.placeholders.titleEn')" />
                                     </div>
@@ -502,15 +532,20 @@ const resetToVisualNormalized = () => {
                                             <template #item="{ element: g, index }">
                                                 <div class="border border-border p-2">
                                                     <div class="flex items-start gap-3">
-                                                        <div class="w-16 h-16 border border-border bg-white overflow-hidden">
+                                                        <div
+                                                            class="w-16 h-16 border border-border bg-white overflow-hidden">
                                                             <img v-if="galleryThumbSrc(g)" :src="galleryThumbSrc(g)"
-                                                                class="w-full h-full object-cover" />
+                                                                class="w-full h-full object-cover"
+                                                                @error="() => onGalleryImgError(g)" />
                                                         </div>
                                                         <div class="flex-1 min-w-0">
                                                             <div class="flex items-center gap-2">
-                                                                <span class="drag-handle cursor-grab select-none text-black/40">⋮⋮</span>
-                                                                <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
-                                                                    {{ t('admin.products.detailEditor.gallery.item') }} #{{ index + 1 }}
+                                                                <span
+                                                                    class="drag-handle cursor-grab select-none text-black/40">⋮⋮</span>
+                                                                <div
+                                                                    class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
+                                                                    {{ t('admin.products.detailEditor.gallery.item') }}
+                                                                    #{{ index + 1 }}
                                                                 </div>
                                                             </div>
                                                             <div class="mt-2">
@@ -518,16 +553,21 @@ const resetToVisualNormalized = () => {
                                                                     :placeholder="t('admin.products.detailEditor.gallery.urlPlaceholder')" />
                                                             </div>
                                                             <div class="mt-2 flex items-center gap-3">
-                                                                <input type="file" accept="image/*" :disabled="disabled || !canUploadGallery"
-                                                                    @change="(e) => onUploadGallery(index, e)" class="block w-full text-xs" />
-                                                                <span v-if="!canUploadGallery" class="text-xs text-black/50">
-                                                                    {{ t('admin.products.detailEditor.gallery.needStyleNo') }}
+                                                                <input type="file" accept="image/*"
+                                                                    :disabled="disabled || !canUploadGallery"
+                                                                    @change="(e) => onUploadGallery(index, e)"
+                                                                    class="block w-full text-xs" />
+                                                                <span v-if="!canUploadGallery"
+                                                                    class="text-xs text-black/50">
+                                                                    {{
+                                                                    t('admin.products.detailEditor.gallery.needStyleNo')
+                                                                    }}
                                                                 </span>
                                                             </div>
                                                         </div>
                                                         <div>
-                                                            <NButton size="tiny" secondary type="error" :disabled="disabled"
-                                                                @click="removeGalleryItem(index)">
+                                                            <NButton size="tiny" secondary type="error"
+                                                                :disabled="disabled" @click="removeGalleryItem(index)">
                                                                 {{ t('admin.actions.delete') }}
                                                             </NButton>
                                                         </div>
@@ -541,22 +581,22 @@ const resetToVisualNormalized = () => {
                                 <div v-else-if="element.type === 'richText'" class="mt-4">
                                     <div class="grid md:grid-cols-2 gap-3">
                                         <div>
-                                            <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">ZH
+                                            <div
+                                                class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
+                                                ZH
                                             </div>
-                                            <NInput
-                                                :value="(element as any).data?.text_i18n?.zh || ''"
-                                                type="textarea" :autosize="{ minRows: 4, maxRows: 10 }"
-                                                :disabled="disabled"
+                                            <NInput :value="(element as any).data?.text_i18n?.zh || ''" type="textarea"
+                                                :autosize="{ minRows: 4, maxRows: 10 }" :disabled="disabled"
                                                 @update:value="(v) => { (element as any).data = (element as any).data || {}; (element as any).data.text_i18n = (element as any).data.text_i18n || {}; (element as any).data.text_i18n.zh = v }"
                                                 :placeholder="t('admin.products.detailEditor.placeholders.textZh')" />
                                         </div>
                                         <div>
-                                            <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">EN
+                                            <div
+                                                class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
+                                                EN
                                             </div>
-                                            <NInput
-                                                :value="(element as any).data?.text_i18n?.en || ''"
-                                                type="textarea" :autosize="{ minRows: 4, maxRows: 10 }"
-                                                :disabled="disabled"
+                                            <NInput :value="(element as any).data?.text_i18n?.en || ''" type="textarea"
+                                                :autosize="{ minRows: 4, maxRows: 10 }" :disabled="disabled"
                                                 @update:value="(v) => { (element as any).data = (element as any).data || {}; (element as any).data.text_i18n = (element as any).data.text_i18n || {}; (element as any).data.text_i18n.en = v }"
                                                 :placeholder="t('admin.products.detailEditor.placeholders.textEn')" />
                                         </div>
@@ -580,9 +620,12 @@ const resetToVisualNormalized = () => {
                                                 <div class="border border-border p-2">
                                                     <div class="flex items-center justify-between gap-2">
                                                         <div class="flex items-center gap-2">
-                                                            <span class="drag-handle cursor-grab select-none text-black/40">⋮⋮</span>
-                                                            <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
-                                                                {{ t('admin.products.detailEditor.specs.row') }} #{{ index + 1 }}
+                                                            <span
+                                                                class="drag-handle cursor-grab select-none text-black/40">⋮⋮</span>
+                                                            <div
+                                                                class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
+                                                                {{ t('admin.products.detailEditor.specs.row') }} #{{
+                                                                index + 1 }}
                                                             </div>
                                                         </div>
                                                         <NButton size="tiny" secondary type="error" :disabled="disabled"
@@ -595,13 +638,11 @@ const resetToVisualNormalized = () => {
                                                         <NInput v-model:value="row.key" :disabled="disabled"
                                                             :placeholder="t('admin.products.detailEditor.specs.keyPlaceholder')" />
                                                         <div class="grid grid-cols-2 gap-2">
-                                                            <NInput
-                                                                :value="row.label_i18n?.zh || ''"
+                                                            <NInput :value="row.label_i18n?.zh || ''"
                                                                 :disabled="disabled"
                                                                 @update:value="(v) => setI18n(row, 'label_i18n', 'zh', v)"
                                                                 :placeholder="t('admin.products.detailEditor.specs.labelZh')" />
-                                                            <NInput
-                                                                :value="row.label_i18n?.en || ''"
+                                                            <NInput :value="row.label_i18n?.en || ''"
                                                                 :disabled="disabled"
                                                                 @update:value="(v) => setI18n(row, 'label_i18n', 'en', v)"
                                                                 :placeholder="t('admin.products.detailEditor.specs.labelEn')" />
@@ -609,14 +650,10 @@ const resetToVisualNormalized = () => {
                                                     </div>
 
                                                     <div class="mt-2 grid grid-cols-2 gap-2">
-                                                        <NInput
-                                                            :value="row.value_i18n?.zh || ''"
-                                                            :disabled="disabled"
+                                                        <NInput :value="row.value_i18n?.zh || ''" :disabled="disabled"
                                                             @update:value="(v) => setI18n(row, 'value_i18n', 'zh', v)"
                                                             :placeholder="t('admin.products.detailEditor.specs.valueZh')" />
-                                                        <NInput
-                                                            :value="row.value_i18n?.en || ''"
-                                                            :disabled="disabled"
+                                                        <NInput :value="row.value_i18n?.en || ''" :disabled="disabled"
                                                             @update:value="(v) => setI18n(row, 'value_i18n', 'en', v)"
                                                             :placeholder="t('admin.products.detailEditor.specs.valueEn')" />
                                                     </div>
@@ -640,7 +677,8 @@ const resetToVisualNormalized = () => {
                                         <div v-for="(g, gIdx) in optionGroups" :key="g.key"
                                             class="border border-border p-2">
                                             <div class="flex items-center justify-between gap-2">
-                                                <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
+                                                <div
+                                                    class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
                                                     {{ t('admin.products.detailEditor.options.group') }} #{{ gIdx + 1 }}
                                                 </div>
                                                 <NButton size="tiny" secondary type="error" :disabled="disabled"
@@ -653,21 +691,18 @@ const resetToVisualNormalized = () => {
                                                 <NInput v-model:value="g.key" :disabled="disabled"
                                                     :placeholder="t('admin.products.detailEditor.options.groupKeyPlaceholder')" />
                                                 <div class="grid grid-cols-2 gap-2">
-                                                    <NInput
-                                                        :value="g.name_i18n?.zh || ''"
-                                                        :disabled="disabled"
+                                                    <NInput :value="g.name_i18n?.zh || ''" :disabled="disabled"
                                                         @update:value="(v) => setI18n(g, 'name_i18n', 'zh', v)"
                                                         :placeholder="t('admin.products.detailEditor.options.groupNameZh')" />
-                                                    <NInput
-                                                        :value="g.name_i18n?.en || ''"
-                                                        :disabled="disabled"
+                                                    <NInput :value="g.name_i18n?.en || ''" :disabled="disabled"
                                                         @update:value="(v) => setI18n(g, 'name_i18n', 'en', v)"
                                                         :placeholder="t('admin.products.detailEditor.options.groupNameEn')" />
                                                 </div>
                                             </div>
 
                                             <div class="mt-3 flex items-center justify-between">
-                                                <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
+                                                <div
+                                                    class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
                                                     {{ t('admin.products.detailEditor.options.items') }}
                                                 </div>
                                                 <NButton size="tiny" secondary :disabled="disabled"
@@ -680,8 +715,10 @@ const resetToVisualNormalized = () => {
                                                 <div v-for="(opt, optIdx) in (g.options || [])" :key="opt.key"
                                                     class="border border-border p-2">
                                                     <div class="flex items-center justify-between gap-2">
-                                                        <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
-                                                            {{ t('admin.products.detailEditor.options.item') }} #{{ Number(optIdx) + 1 }}
+                                                        <div
+                                                            class="font-mono text-[10px] uppercase tracking-[0.25em] text-black/40">
+                                                            {{ t('admin.products.detailEditor.options.item') }} #{{
+                                                            Number(optIdx) + 1 }}
                                                         </div>
                                                         <NButton size="tiny" secondary type="error" :disabled="disabled"
                                                             @click="removeOptionItem(Number(gIdx), Number(optIdx))">
@@ -693,13 +730,11 @@ const resetToVisualNormalized = () => {
                                                         <NInput v-model:value="opt.key" :disabled="disabled"
                                                             :placeholder="t('admin.products.detailEditor.options.itemKeyPlaceholder')" />
                                                         <div class="grid grid-cols-2 gap-2">
-                                                            <NInput
-                                                                :value="opt.label_i18n?.zh || ''"
+                                                            <NInput :value="opt.label_i18n?.zh || ''"
                                                                 :disabled="disabled"
                                                                 @update:value="(v) => setI18n(opt, 'label_i18n', 'zh', v)"
                                                                 :placeholder="t('admin.products.detailEditor.options.itemLabelZh')" />
-                                                            <NInput
-                                                                :value="opt.label_i18n?.en || ''"
+                                                            <NInput :value="opt.label_i18n?.en || ''"
                                                                 :disabled="disabled"
                                                                 @update:value="(v) => setI18n(opt, 'label_i18n', 'en', v)"
                                                                 :placeholder="t('admin.products.detailEditor.options.itemLabelEn')" />
@@ -719,8 +754,8 @@ const resetToVisualNormalized = () => {
             <NTabPane name="json" :tab="t('admin.products.detailEditor.tabs.json')">
                 <NAlert type="warning" class="mb-3">{{ t('admin.products.detailEditor.jsonWarning') }}</NAlert>
 
-                <NInput :value="json" type="textarea" :autosize="{ minRows: 10, maxRows: 22 }"
-                    class="font-mono text-xs" :disabled="disabled" @update:value="onJsonInput" />
+                <NInput :value="json" type="textarea" :autosize="{ minRows: 10, maxRows: 22 }" class="font-mono text-xs"
+                    :disabled="disabled" @update:value="onJsonInput" />
 
                 <div class="mt-3 flex items-center justify-end gap-2">
                     <NButton size="small" secondary :disabled="disabled" @click="resetToVisualNormalized">
