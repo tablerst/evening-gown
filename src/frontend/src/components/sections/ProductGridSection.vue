@@ -276,9 +276,9 @@ const goDetail = (id: number) => {
                             <div class="flex flex-col min-w-0">
                                 <div class="flex items-center gap-2">
                                     <span class="font-bold text-black truncate">{{ t('product.style', { id: p.styleNo })
-                                    }}</span>
+                                        }}</span>
                                     <span v-if="p.isNew" class="text-brand uppercase tracking-wider">{{ newBadgeText
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div class="mt-1 flex items-center gap-3 text-gray-500">
                                     <span class="text-black">{{ labelSeason(p.season) }}</span>

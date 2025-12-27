@@ -402,9 +402,9 @@ const buildPoster = async (
         specsLines: string[]
     },
 ) => {
-    // 3:5 竖版
     const w = 1080
-    const h = 1800
+    const h = 1920
+    const padding = 60
 
     const canvas = document.createElement('canvas')
     canvas.width = w
@@ -412,113 +412,135 @@ const buildPoster = async (
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('no canvas ctx')
 
-    // base background
-    ctx.fillStyle = '#ffffff'
+    // 1. Background
+    ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, w, h)
 
-    // top bar
-    ctx.fillStyle = '#000226'
-    ctx.fillRect(0, 0, w, 96)
-    ctx.fillStyle = '#ffffff'
-    ctx.font = 'bold 38px ui-sans-serif, system-ui, -apple-system'
-    ctx.fillText('FLEURLIS', 48, 62)
+    // 2. Outer Frame
+    ctx.strokeStyle = '#000000'
+    ctx.lineWidth = 2
+    ctx.strokeRect(padding, padding, w - padding * 2, h - padding * 2)
 
-    let drewImage = false
+    // 3. Header
+    ctx.fillStyle = '#000000'
+    ctx.font = 'bold 90px "Times New Roman", serif'
+    ctx.textAlign = 'left'
+    ctx.fillText('FLEURLIS', padding + 40, padding + 120)
+
+    const dateStr = new Date().toLocaleDateString('en-GB').toUpperCase()
+    ctx.font = '400 30px "Courier New", monospace'
+    ctx.textAlign = 'right'
+    ctx.fillText(`ARCHIVE / ${dateStr}`, w - padding - 40, padding + 110)
+
+    ctx.beginPath()
+    ctx.moveTo(padding + 40, padding + 160)
+    ctx.lineTo(w - padding - 40, padding + 160)
+    ctx.lineWidth = 4
+    ctx.stroke()
+
+    // 4. Image
+    let imgY = padding + 220
+    const maxImgH = 900
     if (p.coverImage) {
         try {
             const img = await loadImage(p.coverImage)
-            // cover image area
-            const imgX = 0
-            const imgY = 96
-            const imgW = w
-            // Leave more space for details (selected options + specs) in the bottom card.
-            const imgH = 1200
-            ctx.drawImage(img, imgX, imgY, imgW, imgH)
-            // subtle overlay
-            ctx.fillStyle = 'rgba(0,2,38,0.10)'
-            ctx.fillRect(imgX, imgY, imgW, imgH)
-            drewImage = true
+            const availW = w - (padding * 2) - 80
+            const scale = Math.min(availW / img.width, maxImgH / img.height)
+            const drawW = img.width * scale
+            const drawH = img.height * scale
+            const drawX = (w - drawW) / 2
+
+            ctx.drawImage(img, drawX, imgY, drawW, drawH)
+            ctx.strokeStyle = '#000000'
+            ctx.lineWidth = 1
+            ctx.strokeRect(drawX, imgY, drawW, drawH)
+
+            imgY += drawH + 60
         } catch {
-            // ignore; fallback to text-only poster
+            imgY += 400
         }
+    } else {
+        imgY += 400
     }
 
-    // bottom info card
-    const cardY = 1320
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, cardY, w, h - cardY)
-    ctx.strokeStyle = '#e5e7eb'
-    ctx.lineWidth = 2
-    ctx.strokeRect(0, cardY, w, h - cardY)
+    // 5. Product Info
+    const infoX = padding + 40
 
-    ctx.fillStyle = '#111827'
-    ctx.font = '700 48px ui-sans-serif, system-ui, -apple-system'
-    ctx.fillText(`STYLE #${p.styleNo}`, 48, cardY + 90)
+    ctx.fillStyle = '#000000'
+    ctx.textAlign = 'left'
+    ctx.font = 'bold 100px "Times New Roman", serif'
+    ctx.fillText(`STYLE #${p.styleNo}`, infoX, imgY + 80)
 
-    ctx.fillStyle = '#6b7280'
-    ctx.font = '500 28px ui-sans-serif, system-ui, -apple-system'
-    ctx.fillText(`${p.season.toUpperCase()} · ${p.category.toUpperCase()} · ${p.availability.toUpperCase()}`, 48, cardY + 140)
+    ctx.font = '500 36px "Courier New", monospace'
+    ctx.fillStyle = '#444444'
+    const metaText = `${p.season} · ${p.category} · ${p.availability}`.toUpperCase()
+    ctx.fillText(metaText, infoX, imgY + 150)
 
-    ctx.fillStyle = '#d4af37'
-    ctx.font = '800 36px ui-sans-serif, system-ui, -apple-system'
-    ctx.fillText(p.priceText || t('product.login'), 48, cardY + 200)
+    ctx.fillStyle = '#000226'
+    ctx.font = 'bold 60px "Times New Roman", serif'
+    const price = p.priceText || t('product.login')
+    ctx.fillText(price, infoX, imgY + 250)
 
-    const wrapText = (text: string, maxWidth: number): string[] => {
-        const out: string[] = []
-        let line = ''
-        for (const ch of Array.from(String(text ?? ''))) {
-            const next = line + ch
-            if (ctx.measureText(next).width > maxWidth && line) {
-                out.push(line)
-                line = ch
+    // 6. Specs & Options
+    let cursorY = imgY + 350
+    const lineHeight = 50
+
+    ctx.font = '400 32px "Courier New", monospace'
+    ctx.fillStyle = '#000000'
+
+    const drawRow = (label: string, value: string) => {
+        if (cursorY > h - padding - 150) return
+        ctx.fillStyle = '#666666'
+        ctx.fillText(label.toUpperCase(), infoX, cursorY)
+        const valueX = infoX + 300
+        ctx.fillStyle = '#000000'
+        ctx.fillText(value, valueX, cursorY)
+        cursorY += lineHeight
+    }
+
+    if (extra.selectedOptionLines.length) {
+        ctx.fillStyle = '#000000'
+        ctx.font = 'bold 36px "Courier New", monospace'
+        ctx.fillText('OPTIONS', infoX, cursorY)
+        cursorY += 60
+        ctx.font = '400 32px "Courier New", monospace'
+        extra.selectedOptionLines.forEach(line => {
+            const parts = line.split(':')
+            if (parts.length >= 2) {
+                drawRow(parts[0] + ':', parts.slice(1).join(':').trim())
             } else {
-                line = next
+                drawRow('', line)
             }
-        }
-        if (line) out.push(line)
-        return out
+        })
+        cursorY += 40
     }
 
-    const drawSection = (title: string, lines: string[], startY: number) => {
-        const maxWidth = w - 96
-        let y = startY
-        const maxY = h - 76 // keep room for URL
-
-        if (!lines.length) return y
-
-        ctx.fillStyle = '#111827'
-        ctx.font = '700 22px ui-sans-serif, system-ui, -apple-system'
-        ctx.fillText(title, 48, y)
-        y += 30
-
-        ctx.fillStyle = '#374151'
-        ctx.font = '500 24px ui-sans-serif, system-ui, -apple-system'
-
-        for (const rawLine of lines) {
-            const wrapped = wrapText(`• ${rawLine}`, maxWidth)
-            for (const ln of wrapped) {
-                if (y > maxY) return y
-                ctx.fillText(ln, 48, y)
-                y += 32
+    if (extra.specsLines.length) {
+        ctx.fillStyle = '#000000'
+        ctx.font = 'bold 36px "Courier New", monospace'
+        ctx.fillText('SPECIFICATIONS', infoX, cursorY)
+        cursorY += 60
+        ctx.font = '400 32px "Courier New", monospace'
+        extra.specsLines.forEach(line => {
+            const parts = line.split(':')
+            if (parts.length >= 2) {
+                drawRow(parts[0] + ':', parts.slice(1).join(':').trim())
+            } else {
+                drawRow('', line)
             }
-        }
-        return y
+        })
     }
 
-    let yCursor = cardY + 252
-    yCursor = drawSection(t('productDetail.sections.options'), extra.selectedOptionLines, yCursor)
-    yCursor += 16
-    yCursor = drawSection(t('productDetail.sections.specs'), extra.specsLines, yCursor)
-
-    // link
-    ctx.fillStyle = '#111827'
-    ctx.font = '500 22px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+    // 7. Footer
     const url = typeof window === 'undefined' ? '' : window.location.href
-    if (url) ctx.fillText(url, 48, h - 40)
+    if (url) {
+        ctx.fillStyle = '#000000'
+        ctx.font = '400 28px "Courier New", monospace'
+        ctx.textAlign = 'center'
+        ctx.fillText(url, w / 2, h - padding - 40)
+    }
 
-    // to data url
-    const dataUrl = canvas.toDataURL('image/png')
-    return { dataUrl, meta: { w, h, drewImage } }
+    return { dataUrl: canvas.toDataURL('image/png'), meta: { w, h, drewImage: !!p.coverImage } }
 }
 
 const openPoster = async () => {
@@ -656,9 +678,10 @@ onMounted(load)
                                             <button v-for="opt in g.options" :key="opt.key" type="button"
                                                 @click="toggleOption(g.key, opt.key)"
                                                 :aria-pressed="isOptionSelected(g.key, opt.key)"
-                                                class="px-2.5 py-1 border text-xs transition-colors" :class="isOptionSelected(g.key, opt.key)
+                                                class="h-9 min-w-[2.25rem] px-3 border text-xs font-mono transition-colors rounded-none flex items-center justify-center"
+                                                :class="isOptionSelected(g.key, opt.key)
                                                     ? 'bg-brand text-white border-brand'
-                                                    : 'bg-white border-border hover:border-black'">
+                                                    : 'bg-white border-border hover:border-black text-black'">
                                                 {{ opt.label }}
                                             </button>
                                         </div>
@@ -669,9 +692,9 @@ onMounted(load)
                             <div v-else-if="sec.type === 'richText'">
                                 <h2 class="font-mono text-xs uppercase tracking-[0.25em] text-black/60">{{
                                     sectionTitle(sec, 'productDetail.sections.overview') }}</h2>
-                                <p class="mt-4 text-sm leading-relaxed text-black/80 whitespace-pre-line">
+                                <div class="mt-5 text-sm leading-7 text-black/80 whitespace-pre-line font-sans">
                                     {{ pickLocalizedText((sec as any)?.data?.text_i18n) || descriptionText }}
-                                </p>
+                                </div>
                             </div>
 
                             <div v-else-if="sec.type === 'divider'" class="border-t border-border" />
@@ -686,20 +709,23 @@ onMounted(load)
                             <div v-if="sec.type === 'richText'" class="border-t border-border pt-8">
                                 <h2 class="font-mono text-xs uppercase tracking-[0.25em] text-black/60">{{
                                     sectionTitle(sec, 'productDetail.sections.overview') }}</h2>
-                                <p class="mt-4 text-sm leading-relaxed text-black/80 whitespace-pre-line">
+                                <div class="mt-5 text-sm leading-7 text-black/80 whitespace-pre-line font-sans">
                                     {{ pickLocalizedText((sec as any)?.data?.text_i18n) || descriptionText }}
-                                </p>
+                                </div>
                             </div>
 
                             <div v-else-if="sec.type === 'specs' && specs.length" class="border-t border-border pt-8">
                                 <h2 class="font-mono text-xs uppercase tracking-[0.25em] text-black/60">{{
                                     sectionTitle(sec, 'productDetail.sections.specs') }}</h2>
-                                <div class="mt-4 border border-border bg-white">
+                                <div class="mt-5 border-t border-border">
                                     <div v-for="row in specs" :key="row.label"
-                                        class="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border last:border-b-0">
-                                        <div class="col-span-5 font-mono text-xs uppercase tracking-[0.18em] text-black/60">
+                                        class="grid grid-cols-12 border-b border-border group hover:bg-gray-50 transition-colors">
+                                        <div
+                                            class="col-span-4 sm:col-span-3 px-4 py-3 border-r border-border font-mono text-xs uppercase tracking-wider text-black/50 flex items-center">
                                             {{ row.label }}</div>
-                                        <div class="col-span-7 text-sm text-black/80">{{ row.value }}</div>
+                                        <div
+                                            class="col-span-8 sm:col-span-9 px-4 py-3 text-sm text-black font-mono flex items-center">
+                                            {{ row.value }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -713,10 +739,11 @@ onMounted(load)
                             <div v-if="sec.type === 'service'" class="border-t border-border pt-8">
                                 <h2 class="font-mono text-xs uppercase tracking-[0.25em] text-black/60">{{
                                     sectionTitle(sec, 'productDetail.sections.service') }}</h2>
-                                <ul class="mt-4 space-y-2 text-sm text-black/80">
-                                    <li v-for="(it, j) in serviceItems" :key="j" class="flex gap-3">
-                                        <span class="text-black/40">—</span>
-                                        <span>{{ it }}</span>
+                                <ul class="mt-5 space-y-3">
+                                    <li v-for="(it, j) in serviceItems" :key="j" class="flex gap-4 items-start group">
+                                        <span class="font-mono text-brand/40 mt-0.5">—</span>
+                                        <span class="text-sm text-black/80 group-hover:text-black transition-colors">{{
+                                            it }}</span>
                                     </li>
                                 </ul>
                             </div>
@@ -727,22 +754,33 @@ onMounted(load)
                 </div>
             </div>
 
-            <div v-if="posterOpen" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4"
+            <div v-if="posterOpen"
+                class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
                 @click.self="closePoster">
-                <div class="bg-white max-w-lg w-full p-4 border border-border">
-                    <div class="flex items-center justify-between">
-                        <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/60">{{
-                            t('productDetail.posterTitle') }}</div>
+                <div class="bg-white w-full max-w-[400px] flex flex-col max-h-[90vh] shadow-2xl">
+                    <div class="flex items-center justify-between p-4 border-b border-border">
+                        <div class="font-mono text-xs uppercase tracking-[0.25em] text-black">
+                            {{ t('productDetail.posterTitle') }}
+                        </div>
                         <button @click="closePoster"
-                            class="h-9 px-3 border border-border font-mono text-xs uppercase tracking-[0.25em]">Close</button>
+                            class="w-8 h-8 flex items-center justify-center hover:bg-gray-100 transition-colors">
+                            <span class="text-xl leading-none">&times;</span>
+                        </button>
                     </div>
-                    <div class="mt-4 border border-border overflow-hidden">
-                        <img v-if="posterDataUrl" :src="posterDataUrl" class="w-full h-auto block" />
+                    <div class="flex-1 overflow-y-auto p-6 bg-gray-50 flex items-center justify-center">
+                        <div class="shadow-lg border border-gray-200">
+                            <img v-if="posterDataUrl" :src="posterDataUrl" class="w-full h-auto block" />
+                        </div>
                     </div>
-                    <a v-if="posterDataUrl" :href="posterDataUrl" download="poster.png"
-                        class="mt-4 inline-flex h-10 items-center px-4 bg-brand text-white font-mono text-xs uppercase tracking-[0.25em]">
-                        {{ t('productDetail.downloadPoster') }}
-                    </a>
+                    <div class="p-4 border-t border-border bg-white">
+                        <a v-if="posterDataUrl" :href="posterDataUrl" download="FLEURLIS_ARCHIVE.png"
+                            class="flex h-12 items-center justify-center bg-brand text-white font-mono text-xs uppercase tracking-[0.25em] hover:bg-brand/90 transition-colors w-full">
+                            {{ t('productDetail.downloadPoster') }}
+                        </a>
+                        <p class="mt-3 text-center font-mono text-[10px] text-gray-400 uppercase tracking-widest">
+                            Long press to save image
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

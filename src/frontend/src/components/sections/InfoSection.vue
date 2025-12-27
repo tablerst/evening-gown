@@ -69,29 +69,35 @@ const submit = async () => {
 <template>
     <section id="contact" class="grid md:grid-cols-2 lg:grid-cols-4 border-t border-border bg-border gap-[1px]">
         <!-- Designer -->
-        <div class="bg-white p-8 md:p-12 flex flex-col justify-between">
+        <div
+            class="bg-white p-8 md:p-12 flex flex-col justify-between group hover:bg-gray-50 transition-colors duration-500">
             <div>
-                <h3 class="font-display text-xl mb-6 uppercase tracking-wider">{{ t('info.designerTitle') }}</h3>
-                <p class="font-body text-sm leading-relaxed mb-8 text-gray-800">
+                <h3 class="font-display text-2xl mb-8 uppercase tracking-[0.15em] font-bold text-black">{{
+                    t('info.designerTitle') }}</h3>
+                <p class="font-sans text-sm leading-8 mb-10 text-black/80 text-justify">
                     {{ t('info.designerBody') }}
                 </p>
             </div>
-            <span class="font-mono text-xs uppercase tracking-wider text-gray-500 block mt-auto">{{
-                t('info.designerSign') }}</span>
+            <div class="mt-auto pt-6 border-t border-black/5">
+                <span class="font-mono text-[10px] uppercase tracking-[0.25em] text-black block">{{
+                    t('info.designerSign') }}</span>
+            </div>
         </div>
 
         <!-- Appointment -->
-        <div class="bg-white p-8 md:p-12 flex flex-col justify-between">
+        <div
+            class="bg-white p-8 md:p-12 flex flex-col justify-between group hover:bg-gray-50 transition-colors duration-500">
             <div>
-                <h3 class="font-display text-xl mb-6 uppercase tracking-wider">{{ t('info.appointmentTitle') }}</h3>
-                <p class="font-body text-sm leading-relaxed mb-8 text-gray-800">
+                <h3 class="font-display text-2xl mb-8 uppercase tracking-[0.15em] font-bold text-black">{{
+                    t('info.appointmentTitle') }}</h3>
+                <p class="font-sans text-sm leading-8 mb-10 text-black/80">
                     {{ t('info.appointmentBody') }}
                 </p>
             </div>
 
             <div class="mt-auto">
                 <button @click="toggle"
-                    class="w-full py-4 bg-brand text-white font-mono text-sm hover:bg-black transition-none uppercase tracking-widest">
+                    class="w-full h-12 bg-brand text-white font-mono text-xs hover:bg-black transition-colors duration-300 uppercase tracking-[0.25em] flex items-center justify-center">
                     {{ open ? t('info.contactForm.close') : t('info.appointmentCta') }}
                 </button>
 
@@ -131,22 +137,31 @@ const submit = async () => {
         </div>
 
         <!-- Brand -->
-        <div class="bg-white p-8 md:p-12 flex flex-col justify-between">
+        <div
+            class="bg-white p-8 md:p-12 flex flex-col justify-between group hover:bg-gray-50 transition-colors duration-500">
             <div>
-                <h3 class="font-display text-xl mb-6 uppercase tracking-wider">{{ t('info.brandTitle') }}</h3>
-                <ul class="font-mono text-sm space-y-4 text-gray-800">
-                    <li class="flex justify-between border-b border-gray-100 pb-2"><span>{{ t('info.brandStats.est')
-                    }}</span><span>{{ t('info.brandStats.estValue') }}</span>
+                <h3 class="font-display text-2xl mb-8 uppercase tracking-[0.15em] font-bold text-black">{{
+                    t('info.brandTitle') }}</h3>
+                <ul class="font-mono text-sm space-y-0">
+                    <li class="flex justify-between items-center border-b border-black/10 py-4 first:border-t">
+                        <span class="text-[10px] uppercase tracking-[0.15em] text-black/50">{{ t('info.brandStats.est')
+                            }}</span>
+                        <span class="font-bold text-black">{{ t('info.brandStats.estValue') }}</span>
                     </li>
-                    <li class="flex justify-between border-b border-gray-100 pb-2"><span>{{ t('info.brandStats.hq')
-                    }}</span><span>{{ t('info.brandStats.hqValue') }}</span>
+                    <li class="flex justify-between items-center border-b border-black/10 py-4">
+                        <span class="text-[10px] uppercase tracking-[0.15em] text-black/50">{{ t('info.brandStats.hq')
+                            }}</span>
+                        <span class="font-bold text-black">{{ t('info.brandStats.hqValue') }}</span>
                     </li>
-                    <li class="flex justify-between border-b border-gray-100 pb-2"><span>{{
-                        t('info.brandStats.clients')
-                            }}</span><span>{{ t('info.brandStats.clientsValue') }}</span></li>
-                    <li class="flex justify-between border-b border-gray-100 pb-2">
-                        <span>{{ t('info.brandStats.capacity') }}</span><span>{{ t('info.brandStats.capacityValue')
-                        }}</span>
+                    <li class="flex justify-between items-center border-b border-black/10 py-4">
+                        <span class="text-[10px] uppercase tracking-[0.15em] text-black/50">{{
+                            t('info.brandStats.clients') }}</span>
+                        <span class="font-bold text-black">{{ t('info.brandStats.clientsValue') }}</span>
+                    </li>
+                    <li class="flex justify-between items-center border-b border-black/10 py-4">
+                        <span class="text-[10px] uppercase tracking-[0.15em] text-black/50">{{
+                            t('info.brandStats.capacity') }}</span>
+                        <span class="font-bold text-black">{{ t('info.brandStats.capacityValue') }}</span>
                     </li>
                 </ul>
             </div>
@@ -172,14 +187,19 @@ const submit = async () => {
             <!-- Content Overlay -->
             <div class="relative z-10 h-full p-8 md:p-12 flex flex-col justify-between pointer-events-none">
                 <div>
-                    <h3 class="font-display text-xl mb-2 uppercase tracking-wider text-black">{{ t('info.gisTitle') }}
+                    <h3 class="font-display text-2xl mb-3 uppercase tracking-[0.15em] text-black font-bold">{{
+                        t('info.gisTitle') }}
                     </h3>
-                    <p class="font-mono text-xs text-gray-500">{{ t('info.gisStatus') }}</p>
+                    <div class="flex items-center gap-2">
+                        <div class="w-1.5 h-1.5 bg-brand rounded-none animate-pulse"></div>
+                        <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-brand">{{ t('info.gisStatus') }}
+                        </p>
+                    </div>
                 </div>
 
-                <div class="font-mono text-sm">
-                    <div class="mb-1 text-gray-600">{{ t('info.gisLocation') }}</div>
-                    <div class="text-black tracking-wider">{{ t('info.gisCoordinates') }}</div>
+                <div class="font-mono text-xs">
+                    <div class="mb-2 text-black/50 uppercase tracking-widest">{{ t('info.gisLocation') }}</div>
+                    <div class="text-black tracking-[0.15em] font-bold text-sm">{{ t('info.gisCoordinates') }}</div>
                 </div>
             </div>
         </div>
