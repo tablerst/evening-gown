@@ -78,6 +78,7 @@ const applyQueryToState = () => {
     const q = route.query
     const et = typeof q.event_type === 'string' ? q.event_type : Array.isArray(q.event_type) ? q.event_type[0] : ''
     const pid = typeof q.product_id === 'string' ? q.product_id : Array.isArray(q.product_id) ? q.product_id[0] : ''
+    const rg = typeof q.range === 'string' ? q.range : Array.isArray(q.range) ? q.range[0] : ''
     const from =
         typeof q.from === 'string' ? q.from : Array.isArray(q.from) && typeof q.from[0] === 'string' ? q.from[0] : ''
     const to = typeof q.to === 'string' ? q.to : Array.isArray(q.to) && typeof q.to[0] === 'string' ? q.to[0] : ''
@@ -86,6 +87,10 @@ const applyQueryToState = () => {
     productId.value = (pid || '').trim()
     fromLocal.value = fromRFC3339ToLocalInput(from)
     toLocal.value = fromRFC3339ToLocalInput(to)
+
+    if (rg === '7d' || rg === '30d' || rg === '90d') {
+        metricsRange.value = rg
+    }
 }
 
 const syncStateToQuery = () => {
@@ -94,6 +99,7 @@ const syncStateToQuery = () => {
     const pid = productId.value.trim()
     const from = toRFC3339(fromLocal.value)
     const to = toRFC3339(toLocal.value)
+    const rg = metricsRange.value
 
     if (et) q.event_type = et
     else delete q.event_type
@@ -106,6 +112,9 @@ const syncStateToQuery = () => {
 
     if (to) q.to = to
     else delete q.to
+
+    if (rg && rg !== '7d') q.range = rg
+    else delete q.range
 
     updatingQuery = true
     void router.replace({ query: q }).finally(() => {
@@ -200,6 +209,8 @@ const remove = async (id: number) => {
 }
 
 watch(metricsRange, () => {
+    if (initializing) return
+    syncStateToQuery()
     void loadMetrics()
 })
 

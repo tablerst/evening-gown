@@ -21,6 +21,27 @@ const tzName = computed(() => {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 })
 
+const toIso = (d: Date) => {
+    if (Number.isNaN(d.getTime())) return ''
+    return d.toISOString()
+}
+
+const makeWindowIso = (days: number) => {
+    const now = new Date()
+    const from = new Date(now)
+    from.setDate(from.getDate() - days)
+    from.setHours(0, 0, 0, 0)
+
+    const to = new Date(now)
+    // Use end-of-day so list filtering feels natural.
+    to.setHours(23, 59, 59, 999)
+
+    return {
+        from: toIso(from),
+        to: toIso(to),
+    }
+}
+
 const loadOverview = async (force = false) => {
     loading.value = true
     errorMsg.value = ''
@@ -51,6 +72,22 @@ const onContactsChanged = () => {
 
 const go = async (name: string) => {
     await router.push({ name })
+}
+
+const goNewLeads = async () => {
+    await router.push({ name: 'admin-contacts', query: { status: 'new' } })
+}
+
+const goEventsWindow = async (days: 7 | 30) => {
+    const w = makeWindowIso(days)
+    await router.push({
+        name: 'admin-events',
+        query: {
+            range: `${days}d`,
+            ...(w.from ? { from: w.from } : {}),
+            ...(w.to ? { to: w.to } : {}),
+        },
+    })
 }
 
 onMounted(() => {
@@ -91,25 +128,28 @@ onBeforeUnmount(() => {
             <div class="mt-5">
                 <NGrid :cols="3" :x-gap="12" :y-gap="12">
                     <NGridItem>
-                        <div class="border border-border p-4">
+                        <button type="button" class="w-full text-left border border-border p-4 hover:border-black/30"
+                            @click="goNewLeads">
                             <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">{{
                                 t('admin.home.overview.cards.newLeads') }}</div>
                             <div class="mt-2 font-display text-3xl tracking-wider">{{ newLeads }}</div>
-                        </div>
+                        </button>
                     </NGridItem>
                     <NGridItem>
-                        <div class="border border-border p-4">
+                        <button type="button" class="w-full text-left border border-border p-4 hover:border-black/30"
+                            @click="goEventsWindow(7)">
                             <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">{{
                                 t('admin.home.overview.cards.events7d') }}</div>
                             <div class="mt-2 font-display text-3xl tracking-wider">{{ events7d }}</div>
-                        </div>
+                        </button>
                     </NGridItem>
                     <NGridItem>
-                        <div class="border border-border p-4">
+                        <button type="button" class="w-full text-left border border-border p-4 hover:border-black/30"
+                            @click="goEventsWindow(30)">
                             <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">{{
                                 t('admin.home.overview.cards.events30d') }}</div>
                             <div class="mt-2 font-display text-3xl tracking-wider">{{ events30d }}</div>
-                        </div>
+                        </button>
                     </NGridItem>
                 </NGrid>
             </div>

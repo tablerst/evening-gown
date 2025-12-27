@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -61,7 +61,6 @@ watch(filterStatus, (v) => {
         else q.status = v
         updatingQuery = true
         void router.replace({ query: q }).finally(() => {
-            // Let the route watcher observe the final query without double-triggering.
             window.setTimeout(() => {
                 updatingQuery = false
             }, 0)
@@ -104,7 +103,7 @@ const load = async () => {
 
         const res = await adminGet<{ items: ContactLead[] }>(`/api/v1/admin/contacts?${qs.toString()}`)
         items.value = res.items ?? []
-    } catch (e) {
+    } catch {
         errorMsg.value = t('admin.contacts.errors.load')
     } finally {
         loading.value = false
@@ -118,7 +117,7 @@ const setStatus = async (id: number, status: ContactLead['status']) => {
         await adminPatch(`/api/v1/admin/contacts/${id}`, { status })
         await load()
         dispatchContactsChanged()
-    } catch (e) {
+    } catch {
         errorMsg.value = t('admin.contacts.errors.update')
     } finally {
         loading.value = false
@@ -133,7 +132,7 @@ const remove = async (id: number) => {
         await adminDelete(`/api/v1/admin/contacts/${id}`)
         await load()
         dispatchContactsChanged()
-    } catch (e) {
+    } catch {
         errorMsg.value = t('admin.contacts.errors.delete')
     } finally {
         loading.value = false
@@ -146,6 +145,11 @@ onMounted(() => {
     filterStatus.value = init
     syncingFromRoute = false
     void load()
+})
+
+onBeforeUnmount(() => {
+    if (copiedTimer) window.clearTimeout(copiedTimer)
+    copiedTimer = null
 })
 </script>
 
@@ -189,42 +193,50 @@ onMounted(() => {
                             <th class="p-3">{{ t('admin.contacts.table.wechat') }}</th>
                             <th class="p-3">{{ t('admin.contacts.table.message') }}</th>
                             <th class="p-3">{{ t('admin.contacts.table.source') }}</th>
-                            <th class="p-3">{{ t('admin.contacts.table.status') }}</th>
-                            <th class="p-3">{{ t('admin.contacts.table.actions') }}</th>
+                            <th class="p-3 whitespace-nowrap">{{ t('admin.contacts.table.status') }}</th>
+                            <th class="p-3 whitespace-nowrap min-w-[260px]">{{ t('admin.contacts.table.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="c in items" :key="c.id" class="border-t border-border align-top">
+                        <tr v-for="c in items" :key="c.id" class="border-t border-border">
                             <td class="p-3">{{ c.id }}</td>
                             <td class="p-3 whitespace-nowrap">{{ c.createdAt?.slice(0, 19).replace('T', ' ') }}</td>
                             <td class="p-3 whitespace-nowrap">{{ c.name }}</td>
+
                             <td class="p-3 whitespace-nowrap">
                                 <div class="flex items-center gap-2">
                                     <span>{{ c.phone || '-' }}</span>
-                                    <button v-if="c.phone" class="h-7 px-2 border border-border text-black/70"
+                                    <button v-if="c.phone"
+                                        class="h-7 px-2 border border-border text-black/70 whitespace-nowrap"
                                         @click="copyText(c.id, 'phone', c.phone)">
                                         {{ t('admin.contacts.actions.copy') }}
                                     </button>
                                     <span v-if="copied?.id === c.id && copied?.field === 'phone'"
-                                        class="text-[11px] text-green-700">{{ t('admin.contacts.actions.copied')
-                                        }}</span>
+                                        class="text-[11px] text-green-700">
+                                        {{ t('admin.contacts.actions.copied') }}
+                                    </span>
                                 </div>
                             </td>
+
                             <td class="p-3 whitespace-nowrap">
                                 <div class="flex items-center gap-2">
                                     <span>{{ c.wechat || '-' }}</span>
-                                    <button v-if="c.wechat" class="h-7 px-2 border border-border text-black/70"
+                                    <button v-if="c.wechat"
+                                        class="h-7 px-2 border border-border text-black/70 whitespace-nowrap"
                                         @click="copyText(c.id, 'wechat', c.wechat)">
                                         {{ t('admin.contacts.actions.copy') }}
                                     </button>
                                     <span v-if="copied?.id === c.id && copied?.field === 'wechat'"
-                                        class="text-[11px] text-green-700">{{ t('admin.contacts.actions.copied')
-                                        }}</span>
+                                        class="text-[11px] text-green-700">
+                                        {{ t('admin.contacts.actions.copied') }}
+                                    </span>
                                 </div>
                             </td>
-                            <td class="p-3 min-w-[240px] text-black/70">{{ c.message }}</td>
-                            <td class="p-3 min-w-[200px] text-black/60">{{ c.sourcePage }}</td>
-                            <td class="p-3">
+
+                            <td class="p-3 min-w-[240px] text-black/70 align-top">{{ c.message }}</td>
+                            <td class="p-3 min-w-[200px] text-black/60 align-top">{{ c.sourcePage }}</td>
+
+                            <td class="p-3 whitespace-nowrap">
                                 <select :disabled="loading" :value="c.status"
                                     @change="setStatus(c.id, ($event.target as HTMLSelectElement).value as any)"
                                     class="h-9 px-2 border border-border font-mono text-xs">
@@ -233,21 +245,24 @@ onMounted(() => {
                                     <option value="closed">{{ t('admin.contacts.filters.closed') }}</option>
                                 </select>
                             </td>
-                            <td class="p-3">
-                                <button :disabled="loading" @click="remove(c.id)"
-                                    class="h-8 px-3 border border-red-300 bg-white text-red-700 hover:border-red-500 transition-none disabled:opacity-60">
-                                    {{ t('admin.actions.delete') }}
-                                </button>
-                                <button v-if="c.status !== 'contacted'" :disabled="loading"
-                                    @click="setStatus(c.id, 'contacted')"
-                                    class="ml-2 h-8 px-3 border border-border bg-white text-black/70 hover:border-black/40 transition-none disabled:opacity-60">
-                                    {{ t('admin.contacts.actions.markContacted') }}
-                                </button>
-                                <button v-if="c.status !== 'closed'" :disabled="loading"
-                                    @click="setStatus(c.id, 'closed')"
-                                    class="ml-2 h-8 px-3 border border-border bg-white text-black/70 hover:border-black/40 transition-none disabled:opacity-60">
-                                    {{ t('admin.contacts.actions.close') }}
-                                </button>
+
+                            <td class="p-3 whitespace-nowrap min-w-[260px]">
+                                <div class="flex items-center gap-2 flex-nowrap whitespace-nowrap">
+                                    <button :disabled="loading" @click="remove(c.id)"
+                                        class="h-8 px-3 border border-red-300 bg-white text-red-700 hover:border-red-500 transition-none disabled:opacity-60 whitespace-nowrap">
+                                        {{ t('admin.actions.delete') }}
+                                    </button>
+                                    <button v-if="c.status !== 'contacted'" :disabled="loading"
+                                        @click="setStatus(c.id, 'contacted')"
+                                        class="h-8 px-3 border border-border bg-white text-black/70 hover:border-black/40 transition-none disabled:opacity-60 whitespace-nowrap">
+                                        {{ t('admin.contacts.actions.markContacted') }}
+                                    </button>
+                                    <button v-if="c.status !== 'closed'" :disabled="loading"
+                                        @click="setStatus(c.id, 'closed')"
+                                        class="h-8 px-3 border border-border bg-white text-black/70 hover:border-black/40 transition-none disabled:opacity-60 whitespace-nowrap">
+                                        {{ t('admin.contacts.actions.close') }}
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
