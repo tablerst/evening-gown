@@ -83,6 +83,24 @@
 }
 
 @layer components {
+  .site-root {
+    /* App-shell: keep the document from scrolling; scroll happens in .site-scroll */
+    height: 100vh;
+    height: 100svh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .site-scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    /* For hash navigation (scrollIntoView) so headings aren't hidden under the nav */
+    scroll-padding-top: var(--site-nav-h, 96px);
+  }
+
   .page-shell {
     width: min(1440px, 100%);
     margin-inline: auto;
@@ -115,7 +133,9 @@
     /* Shared brand logo sizing so the left panel can match the logo area exactly */
     --lens-brand-logo-w: clamp(104px, 10.5vw, 140px);
     --lens-brand-logo-h: clamp(52px, 5vw, 68px);
+    position: relative;
     background: rgba(255, 255, 255, 0.78);
+    -webkit-backdrop-filter: blur(22px);
     backdrop-filter: blur(22px);
     border-bottom: 1px solid var(--border-hairline);
     box-shadow: 0 12px 40px rgba(200, 200, 200, 0.35);
@@ -123,6 +143,19 @@
     isolation: isolate;
     padding-top: calc(var(--lens-nav-pad-y) + env(safe-area-inset-top));
     padding-bottom: var(--lens-nav-pad-y);
+  }
+
+  /*
+   * Mobile browsers (Android Chrome/Edge, iOS Safari) may shift fixed + backdrop-filter
+   * layers during dynamic toolbar (address bar) animations, making the header appear
+   * to slide up and get clipped. Disable the blur on small screens to stabilize.
+   */
+  @media (max-width: 1023px) {
+    .lens-nav {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      background: rgba(255, 255, 255, 0.92);
+    }
   }
 
   @media (min-width: 768px) {

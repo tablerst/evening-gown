@@ -17,10 +17,21 @@ const isZhLocale = computed(() => locale.value === 'zh')
 const localeToggleLabel = computed(() => (locale.value === 'zh' ? t('nav.language.en') : t('nav.language.zh')))
 
 let scrollHandler: (() => void) | null = null
+let previousScrollOverflow: string | null = null
+let previousScrollPaddingRight: string | null = null
+
 let previousBodyOverflow: string | null = null
-let previousBodyPaddingRight: string | null = null
+let previousHtmlOverflow: string | null = null
 
 const closeButtonRef = ref<HTMLButtonElement | null>(null)
+const navRef = ref<HTMLElement | null>(null)
+const scrollRef = ref<HTMLElement | null>(null)
+const rootRef = ref<HTMLElement | null>(null)
+
+const syncNavHeight = () => {
+    const navH = navRef.value?.offsetHeight ?? 0
+    rootRef.value?.style.setProperty('--site-nav-h', `${navH}px`)
+}
 
 const mobileMenuTitle = computed(() => (locale.value === 'zh' ? '导航' : 'Menu'))
 
@@ -30,26 +41,32 @@ const onWindowKeydown = (event: KeyboardEvent) => {
 
 const lockScroll = () => {
     if (typeof window === 'undefined') return
-    if (previousBodyOverflow !== null) return
+    if (previousScrollOverflow !== null) return
 
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
-    previousBodyOverflow = document.body.style.overflow
-    previousBodyPaddingRight = document.body.style.paddingRight
+    const scrollEl = scrollRef.value
+    if (!scrollEl) return
 
-    document.body.style.overflow = 'hidden'
+    const scrollbarWidth = scrollEl.offsetWidth - scrollEl.clientWidth
+    previousScrollOverflow = scrollEl.style.overflow
+    previousScrollPaddingRight = scrollEl.style.paddingRight
+
+    scrollEl.style.overflow = 'hidden'
     if (scrollbarWidth > 0) {
-        document.body.style.paddingRight = `${scrollbarWidth}px`
+        scrollEl.style.paddingRight = `${scrollbarWidth}px`
     }
 }
 
 const unlockScroll = () => {
     if (typeof window === 'undefined') return
-    if (previousBodyOverflow === null) return
+    if (previousScrollOverflow === null) return
 
-    document.body.style.overflow = previousBodyOverflow
-    document.body.style.paddingRight = previousBodyPaddingRight ?? ''
-    previousBodyOverflow = null
-    previousBodyPaddingRight = null
+    const scrollEl = scrollRef.value
+    if (!scrollEl) return
+
+    scrollEl.style.overflow = previousScrollOverflow
+    scrollEl.style.paddingRight = previousScrollPaddingRight ?? ''
+    previousScrollOverflow = null
+    previousScrollPaddingRight = null
 }
 
 const openMobileMenu = async () => {
@@ -70,20 +87,42 @@ const toggleMobileMenu = () => {
 onMounted(() => {
     if (typeof window === 'undefined') return
 
+    // App-shell scrolling: prevent the document from scrolling, so browser UI is less likely
+    // to collapse/expand on swipe; the actual scroll happens in `scrollRef`.
+    previousHtmlOverflow = document.documentElement.style.overflow
+    previousBodyOverflow = document.body.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+
+    syncNavHeight()
+    window.addEventListener('resize', syncNavHeight, { passive: true })
+
     scrollHandler = () => {
-        isNavCompacted.value = window.scrollY > 30
+        const scrollTop = scrollRef.value?.scrollTop ?? 0
+        isNavCompacted.value = scrollTop > 30
     }
 
     scrollHandler()
-    window.addEventListener('scroll', scrollHandler, { passive: true })
+    scrollRef.value?.addEventListener('scroll', scrollHandler, { passive: true })
 })
 
 onBeforeUnmount(() => {
     if (typeof window !== 'undefined' && scrollHandler) {
-        window.removeEventListener('scroll', scrollHandler)
+        scrollRef.value?.removeEventListener('scroll', scrollHandler)
     }
     scrollHandler = null
     unlockScroll()
+
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', syncNavHeight)
+    }
+
+    if (typeof window !== 'undefined') {
+        document.documentElement.style.overflow = previousHtmlOverflow ?? ''
+        document.body.style.overflow = previousBodyOverflow ?? ''
+        previousHtmlOverflow = null
+        previousBodyOverflow = null
+    }
 })
 
 const toggleLocale = () => {
@@ -96,6 +135,33 @@ watch(
         if (isMobileMenuOpen.value) closeMobileMenu()
     }
 )
+
+// When navigating between pages (path changes), keep scroll container consistent.
+watch(
+    () => route.path,
+    () => {
+        scrollRef.value?.scrollTo({ top: 0 })
+    }
+)
+
+// Hash navigation should scroll the internal container, not the document.
+watch(
+    () => route.hash,
+    async (hash) => {
+        if (!hash) return
+        await nextTick()
+        const container = scrollRef.value
+        if (!container) return
+        const target = container.querySelector(hash) as HTMLElement | null
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    },
+    { flush: 'post', immediate: true }
+)
+
+watch([isNavCompacted, locale], async () => {
+    await nextTick()
+    syncNavHeight()
+})
 
 watch(isMobileMenuOpen, (open) => {
     if (typeof window === 'undefined') return
@@ -119,9 +185,9 @@ const mobileNavItems = computed(() => [
 </script>
 
 <template>
-    <div class="site-root min-h-screen bg-atelier text-charcoal">
-        <nav :class="[
-            'lens-nav fixed top-0 w-full z-50 px-6 md:px-10 flex justify-between items-center transition-all duration-300',
+    <div ref="rootRef" class="site-root min-h-screen bg-atelier text-charcoal">
+        <nav ref="navRef" :class="[
+            'lens-nav w-full z-50 px-6 md:px-10 flex justify-between items-center',
             isNavCompacted ? 'lens-nav--compact' : ''
         ]">
             <RouterLink :to="{ name: 'home' }" class="lens-nav__brandTag">
@@ -214,20 +280,22 @@ const mobileNavItems = computed(() => [
             </Transition>
         </Teleport>
 
-        <slot />
+        <main ref="scrollRef" class="site-scroll">
+            <slot />
 
-        <footer class="site-footer">
-            <div class="site-footer__glow" aria-hidden="true"></div>
-            <p class="eyebrow">{{ t('footer.tagline') }}</p>
-            <h2 class="text-3xl md:text-5xl font-serif tracking-[0.3em] mt-4">{{ t('footer.brand') }}</h2>
-            <div class="site-footer__links mt-6">
-                <a href="#" class="nav-link">{{ t('footer.instagram') }}</a>
-                <span>•</span>
-                <a href="#" class="nav-link">{{ t('footer.wechat') }}</a>
-                <span>•</span>
-                <a href="#" class="nav-link">{{ t('footer.email') }}</a>
-            </div>
-            <p class="site-footer__legal">{{ t('footer.legal') }}</p>
-        </footer>
+            <footer class="site-footer">
+                <div class="site-footer__glow" aria-hidden="true"></div>
+                <p class="eyebrow">{{ t('footer.tagline') }}</p>
+                <h2 class="text-3xl md:text-5xl font-serif tracking-[0.3em] mt-4">{{ t('footer.brand') }}</h2>
+                <div class="site-footer__links mt-6">
+                    <a href="#" class="nav-link">{{ t('footer.instagram') }}</a>
+                    <span>•</span>
+                    <a href="#" class="nav-link">{{ t('footer.wechat') }}</a>
+                    <span>•</span>
+                    <a href="#" class="nav-link">{{ t('footer.email') }}</a>
+                </div>
+                <p class="site-footer__legal">{{ t('footer.legal') }}</p>
+            </footer>
+        </main>
     </div>
 </template>

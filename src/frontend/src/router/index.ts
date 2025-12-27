@@ -118,6 +118,10 @@ const router = createRouter({
     history: createWebHistory(),
     routes,
     scrollBehavior(to) {
+        // Default layout uses an internal scroll container (app-shell).
+        // Avoid driving window/document scroll here; DefaultLayout handles it.
+        if (to.meta?.layout === 'default') return false
+
         if (to.hash) {
             return {
                 el: to.hash,

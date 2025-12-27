@@ -6,7 +6,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-    <section id="process" class="relative h-screen w-full overflow-hidden bg-black text-white">
+    <section id="process" class="relative h-[100svh] w-full overflow-hidden bg-black text-white">
         <!-- Video Background (Simulated with Image for now) -->
         <div class="absolute inset-0 z-0">
             <img :src="heroUrl" class="w-full h-full object-cover filter-cold-tone opacity-90"
