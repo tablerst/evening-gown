@@ -179,12 +179,14 @@ func New(deps Dependencies) *gin.Engine {
 		}
 		if deps.Admin.Contacts != nil {
 			admin.GET("/contacts", deps.Admin.Contacts.List)
+			admin.GET("/contacts/unread-count", deps.Admin.Contacts.UnreadCount)
 			admin.GET("/contacts/:id", deps.Admin.Contacts.Get)
 			admin.PATCH("/contacts/:id", deps.Admin.Contacts.Update)
 			admin.DELETE("/contacts/:id", deps.Admin.Contacts.Delete)
 		}
 		if deps.Admin.Events != nil {
 			admin.GET("/events", deps.Admin.Events.List)
+			admin.GET("/events/metrics", deps.Admin.Events.Metrics)
 			admin.GET("/events/:id", deps.Admin.Events.Get)
 			admin.DELETE("/events/:id", deps.Admin.Events.Delete)
 		}

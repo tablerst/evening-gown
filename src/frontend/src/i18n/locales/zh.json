@@ -301,6 +301,16 @@
       "errorNetwork": "登录失败（网络或服务器错误）"
     },
     "home": {
+      "overview": {
+        "title": "概览",
+        "subtitle": "新线索与近期事件趋势",
+        "error": "加载概览失败",
+        "cards": {
+          "newLeads": "新线索",
+          "events7d": "事件（近 7 天）",
+          "events30d": "事件（近 30 天）"
+        }
+      },
       "quickActions": "快捷入口",
       "subtitle": "管理产品、内容、线索与数据",
       "sections": {
@@ -520,6 +530,14 @@
       "confirmDelete": "确认删除动态 #{id}？（软删除，前台将不可见）"
     },
     "contacts": {
+      "actions": {
+        "copy": "复制",
+        "copied": "已复制",
+        "markContacted": "标记已联系",
+        "close": "关闭"
+      },
+      "emptyTitle": "暂无线索",
+      "emptyBody": "当前筛选条件下没有数据。你可以点击刷新，或切换状态筛选。",
       "filters": {
         "status": "状态",
         "all": "全部",
@@ -552,8 +570,24 @@
       "filters": {
         "eventType": "event_type",
         "productId": "product_id",
+        "from": "from",
+        "to": "to",
         "placeholderEventType": "poster_generated",
         "placeholderProductId": "123"
+      },
+      "metrics": {
+        "title": "趋势分析",
+        "chartTitle": "按事件类型统计（堆叠）+ 总量",
+        "refresh": "强制刷新",
+        "total": "区间事件总数：{count}",
+        "ranges": {
+          "last7d": "近 7 天",
+          "last30d": "近 30 天",
+          "last90d": "近 90 天"
+        },
+        "errors": {
+          "load": "趋势加载失败"
+        }
       },
       "search": "搜索",
       "table": {

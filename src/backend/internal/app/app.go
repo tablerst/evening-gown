@@ -121,10 +121,15 @@ func Run() error {
 		if err := bootstrap.EnsureSingleAdmin(db, cfg.Admin.Email, cfg.Admin.Password); err != nil {
 			return err
 		}
+		if redisClient != nil {
+			if err := bootstrap.InitAdminCounters(ctx, db, redisClient); err != nil {
+				logger.Warn("init admin counters failed", "err", err)
+			}
+		}
 
 		deps.Public.Products = publicHandlers.NewProductsHandler(db, publicCache)
 		deps.Public.Updates = publicHandlers.NewUpdatesHandler(db, publicCache)
-		deps.Public.Contacts = publicHandlers.NewContactsHandler(db)
+		deps.Public.Contacts = publicHandlers.NewContactsHandlerWithRedis(db, redisClient)
 		deps.Public.Events = publicHandlers.NewEventsHandler(db)
 
 		deps.Admin.Auth = adminHandlers.NewAuthHandler(db, jwtSvc)
@@ -134,8 +139,8 @@ func Run() error {
 		deps.Admin.Uploads = adminHandlers.NewUploadsHandler(minioClient, cfg.Minio, cfg.Upload)
 		deps.Admin.Products = adminHandlers.NewProductsHandler(db, publicCache)
 		deps.Admin.Updates = adminHandlers.NewUpdatesHandler(db, publicCache)
-		deps.Admin.Contacts = adminHandlers.NewContactsHandler(db)
-		deps.Admin.Events = adminHandlers.NewEventsHandler(db)
+		deps.Admin.Contacts = adminHandlers.NewContactsHandlerWithRedis(db, redisClient)
+		deps.Admin.Events = adminHandlers.NewEventsHandlerWithRedis(db, redisClient)
 		deps.Admin.Settings = adminHandlers.NewSettingsHandler(db)
 		deps.Admin.AuthMiddleware = middleware.AdminAuth(db, jwtSvc)
 	} else {

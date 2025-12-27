@@ -1,19 +1,122 @@
 <script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
-import { NCard, NGrid, NGridItem } from 'naive-ui'
+import { NButton, NCard, NGrid, NGridItem, NSpace } from 'naive-ui'
+
+import { adminGet } from '@/admin/api'
 
 const router = useRouter()
 const { t } = useI18n()
 
+const loading = ref(false)
+const newLeads = ref(0)
+const events7d = ref(0)
+const events30d = ref(0)
+const errorMsg = ref('')
+
+const tzName = computed(() => {
+    if (typeof Intl === 'undefined') return 'UTC'
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+})
+
+const loadOverview = async (force = false) => {
+    loading.value = true
+    errorMsg.value = ''
+    try {
+        const qs = force ? '?force=true' : ''
+        const leadRes = await adminGet<{ count: number }>(`/api/v1/admin/contacts/unread-count${qs}`)
+        newLeads.value = typeof leadRes?.count === 'number' ? leadRes.count : Number((leadRes as any)?.count) || 0
+
+        const m7 = await adminGet<any>(
+            `/api/v1/admin/events/metrics?range=7d&tz=${encodeURIComponent(tzName.value)}${force ? '&force=true' : ''}`
+        )
+        events7d.value = Number(m7?.totals?.total ?? 0) || 0
+
+        const m30 = await adminGet<any>(
+            `/api/v1/admin/events/metrics?range=30d&tz=${encodeURIComponent(tzName.value)}${force ? '&force=true' : ''}`
+        )
+        events30d.value = Number(m30?.totals?.total ?? 0) || 0
+    } catch {
+        errorMsg.value = t('admin.home.overview.error')
+    } finally {
+        loading.value = false
+    }
+}
+
+const onContactsChanged = () => {
+    void loadOverview(true)
+}
+
 const go = async (name: string) => {
     await router.push({ name })
 }
+
+onMounted(() => {
+    void loadOverview()
+    if (typeof window !== 'undefined') {
+        window.addEventListener('admin:contacts:changed', onContactsChanged as any)
+    }
+})
+
+onBeforeUnmount(() => {
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('admin:contacts:changed', onContactsChanged as any)
+    }
+})
 </script>
 
 <template>
     <div class="max-w-6xl mx-auto">
+        <NCard size="large" :bordered="true">
+            <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <div class="font-display text-xl uppercase tracking-wider">{{ t('admin.home.overview.title') }}
+                    </div>
+                    <div class="mt-2 font-mono text-xs uppercase tracking-[0.25em] text-black/50">
+                        {{ t('admin.home.overview.subtitle') }}
+                    </div>
+                    <div v-if="errorMsg" class="mt-3 font-mono text-xs text-red-600">{{ errorMsg }}</div>
+                </div>
+
+                <NSpace align="center" :size="10">
+                    <div class="font-mono text-xs text-black/50">TZ: {{ tzName }}</div>
+                    <NButton size="small" secondary :loading="loading" @click="loadOverview(true)">
+                        {{ t('admin.actions.refresh') }}
+                    </NButton>
+                </NSpace>
+            </div>
+
+            <div class="mt-5">
+                <NGrid :cols="3" :x-gap="12" :y-gap="12">
+                    <NGridItem>
+                        <div class="border border-border p-4">
+                            <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">{{
+                                t('admin.home.overview.cards.newLeads') }}</div>
+                            <div class="mt-2 font-display text-3xl tracking-wider">{{ newLeads }}</div>
+                        </div>
+                    </NGridItem>
+                    <NGridItem>
+                        <div class="border border-border p-4">
+                            <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">{{
+                                t('admin.home.overview.cards.events7d') }}</div>
+                            <div class="mt-2 font-display text-3xl tracking-wider">{{ events7d }}</div>
+                        </div>
+                    </NGridItem>
+                    <NGridItem>
+                        <div class="border border-border p-4">
+                            <div class="font-mono text-xs uppercase tracking-[0.25em] text-black/50">{{
+                                t('admin.home.overview.cards.events30d') }}</div>
+                            <div class="mt-2 font-display text-3xl tracking-wider">{{ events30d }}</div>
+                        </div>
+                    </NGridItem>
+                </NGrid>
+            </div>
+        </NCard>
+
+        <div class="mt-4"></div>
+
         <NCard size="large" :bordered="true">
             <div class="font-display text-xl uppercase tracking-wider">{{ t('admin.home.quickActions') }}</div>
             <div class="mt-2 font-mono text-xs uppercase tracking-[0.25em] text-black/50">

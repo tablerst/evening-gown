@@ -16,6 +16,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+	"echarts": "^5.5.0",
     "gsap": "^3.13.0",
     "naive-ui": "^2.43.2",
     "pinia": "^3.0.3",

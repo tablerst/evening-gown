@@ -305,6 +305,16 @@
       "errorNetwork": "Sign in failed (network/server error)"
     },
     "home": {
+      "overview": {
+        "title": "Overview",
+        "subtitle": "New leads and recent event trends",
+        "error": "Failed to load overview",
+        "cards": {
+          "newLeads": "New leads",
+          "events7d": "Events (last 7d)",
+          "events30d": "Events (last 30d)"
+        }
+      },
       "quickActions": "Quick Actions",
       "subtitle": "Manage catalog, content, leads & analytics",
       "sections": {
@@ -524,6 +534,14 @@
       "confirmDelete": "Delete update #{id}? (soft delete; invisible to site)"
     },
     "contacts": {
+      "actions": {
+        "copy": "Copy",
+        "copied": "Copied",
+        "markContacted": "Mark contacted",
+        "close": "Close"
+      },
+      "emptyTitle": "No leads",
+      "emptyBody": "No data for the current filters. Try refresh or change the status filter.",
       "filters": {
         "status": "Status",
         "all": "all",
@@ -556,8 +574,24 @@
       "filters": {
         "eventType": "event_type",
         "productId": "product_id",
+        "from": "from",
+        "to": "to",
         "placeholderEventType": "poster_generated",
         "placeholderProductId": "123"
+      },
+      "metrics": {
+        "title": "Trend",
+        "chartTitle": "Stack by event_type + total",
+        "refresh": "Force refresh",
+        "total": "Total events: {count}",
+        "ranges": {
+          "last7d": "Last 7d",
+          "last30d": "Last 30d",
+          "last90d": "Last 90d"
+        },
+        "errors": {
+          "load": "Failed to load trend"
+        }
       },
       "search": "Search",
       "table": {

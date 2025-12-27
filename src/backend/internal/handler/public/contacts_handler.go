@@ -4,19 +4,26 @@ import (
 	"net/http"
 	"strings"
 
+	"evening-gown/internal/cache"
 	"evening-gown/internal/logging"
 	"evening-gown/internal/model"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type ContactsHandler struct {
-	db *gorm.DB
+	db  *gorm.DB
+	rdb *redis.Client
 }
 
 func NewContactsHandler(db *gorm.DB) *ContactsHandler {
-	return &ContactsHandler{db: db}
+	return NewContactsHandlerWithRedis(db, nil)
+}
+
+func NewContactsHandlerWithRedis(db *gorm.DB, rdb *redis.Client) *ContactsHandler {
+	return &ContactsHandler{db: db, rdb: rdb}
 }
 
 type contactCreateRequest struct {
@@ -70,6 +77,21 @@ func (h *ContactsHandler) Create(c *gin.Context) {
 		logging.ErrorWithStack(logging.FromGin(c), "public contacts create failed", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "create failed"})
 		return
+	}
+
+	// Keep admin "new leads" counter strongly consistent.
+	// Best-effort: do not fail the user submission if Redis is unavailable.
+	if h.rdb != nil {
+		ctx := c.Request.Context()
+		if exists, err := h.rdb.Exists(ctx, cache.AdminContactsNewCountKey).Result(); err == nil && exists == 0 {
+			// Counter key missing (e.g., Redis restart/eviction). Reconcile from DB.
+			var newLeads int64
+			if err := h.db.WithContext(ctx).Model(&model.ContactLead{}).Where("status = ?", "new").Count(&newLeads).Error; err == nil {
+				_ = h.rdb.Set(ctx, cache.AdminContactsNewCountKey, newLeads, 0).Err()
+			}
+		} else {
+			_ = h.rdb.Incr(ctx, cache.AdminContactsNewCountKey).Err()
+		}
 	}
 
 	c.JSON(http.StatusCreated, gin.H{

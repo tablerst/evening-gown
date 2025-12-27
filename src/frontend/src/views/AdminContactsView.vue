@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
-import { HttpError } from '@/api/http'
 import { adminDelete, adminGet, adminPatch } from '@/admin/api'
 
 type ContactLead = {
@@ -23,6 +22,7 @@ type ContactLead = {
 }
 
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 
 const loading = ref(false)
@@ -30,6 +30,69 @@ const errorMsg = ref('')
 const items = ref<ContactLead[]>([])
 
 const filterStatus = ref<'all' | 'new' | 'contacted' | 'closed'>('all')
+
+let updatingQuery = false
+let syncingFromRoute = false
+
+const parseStatusQuery = (v: unknown) => {
+    const raw = typeof v === 'string' ? v : Array.isArray(v) ? v[0] : ''
+    const st = (raw || '').trim()
+    if (st === 'new' || st === 'contacted' || st === 'closed') return st
+    return 'all'
+}
+
+watch(
+    () => route.query.status,
+    (v) => {
+        if (updatingQuery) return
+        const next = parseStatusQuery(v)
+        if (next !== filterStatus.value) {
+            syncingFromRoute = true
+            filterStatus.value = next
+            syncingFromRoute = false
+        }
+    }
+)
+
+watch(filterStatus, (v) => {
+    if (!syncingFromRoute) {
+        const q: Record<string, any> = { ...route.query }
+        if (v === 'all') delete q.status
+        else q.status = v
+        updatingQuery = true
+        void router.replace({ query: q }).finally(() => {
+            // Let the route watcher observe the final query without double-triggering.
+            window.setTimeout(() => {
+                updatingQuery = false
+            }, 0)
+        })
+    }
+    void load()
+})
+
+const dispatchContactsChanged = () => {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new Event('admin:contacts:changed'))
+}
+
+const copied = ref<{ id: number; field: 'phone' | 'wechat' } | null>(null)
+let copiedTimer: number | null = null
+
+const copyText = async (id: number, field: 'phone' | 'wechat', text: string) => {
+    const v = (text || '').trim()
+    if (!v) return
+    try {
+        await navigator.clipboard.writeText(v)
+        copied.value = { id, field }
+        if (copiedTimer) window.clearTimeout(copiedTimer)
+        copiedTimer = window.setTimeout(() => {
+            copied.value = null
+            copiedTimer = null
+        }, 1500)
+    } catch {
+        // Ignore; clipboard may be unavailable depending on context.
+    }
+}
 
 const load = async () => {
     loading.value = true
@@ -42,10 +105,6 @@ const load = async () => {
         const res = await adminGet<{ items: ContactLead[] }>(`/api/v1/admin/contacts?${qs.toString()}`)
         items.value = res.items ?? []
     } catch (e) {
-        if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {
-            await router.replace({ name: 'admin-login' })
-            return
-        }
         errorMsg.value = t('admin.contacts.errors.load')
     } finally {
         loading.value = false
@@ -58,11 +117,8 @@ const setStatus = async (id: number, status: ContactLead['status']) => {
     try {
         await adminPatch(`/api/v1/admin/contacts/${id}`, { status })
         await load()
+        dispatchContactsChanged()
     } catch (e) {
-        if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {
-            await router.replace({ name: 'admin-login' })
-            return
-        }
         errorMsg.value = t('admin.contacts.errors.update')
     } finally {
         loading.value = false
@@ -76,18 +132,21 @@ const remove = async (id: number) => {
     try {
         await adminDelete(`/api/v1/admin/contacts/${id}`)
         await load()
+        dispatchContactsChanged()
     } catch (e) {
-        if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {
-            await router.replace({ name: 'admin-login' })
-            return
-        }
         errorMsg.value = t('admin.contacts.errors.delete')
     } finally {
         loading.value = false
     }
 }
 
-onMounted(load)
+onMounted(() => {
+    const init = parseStatusQuery(route.query.status)
+    syncingFromRoute = true
+    filterStatus.value = init
+    syncingFromRoute = false
+    void load()
+})
 </script>
 
 <template>
@@ -139,8 +198,30 @@ onMounted(load)
                             <td class="p-3">{{ c.id }}</td>
                             <td class="p-3 whitespace-nowrap">{{ c.createdAt?.slice(0, 19).replace('T', ' ') }}</td>
                             <td class="p-3 whitespace-nowrap">{{ c.name }}</td>
-                            <td class="p-3 whitespace-nowrap">{{ c.phone }}</td>
-                            <td class="p-3 whitespace-nowrap">{{ c.wechat }}</td>
+                            <td class="p-3 whitespace-nowrap">
+                                <div class="flex items-center gap-2">
+                                    <span>{{ c.phone || '-' }}</span>
+                                    <button v-if="c.phone" class="h-7 px-2 border border-border text-black/70"
+                                        @click="copyText(c.id, 'phone', c.phone)">
+                                        {{ t('admin.contacts.actions.copy') }}
+                                    </button>
+                                    <span v-if="copied?.id === c.id && copied?.field === 'phone'"
+                                        class="text-[11px] text-green-700">{{ t('admin.contacts.actions.copied')
+                                        }}</span>
+                                </div>
+                            </td>
+                            <td class="p-3 whitespace-nowrap">
+                                <div class="flex items-center gap-2">
+                                    <span>{{ c.wechat || '-' }}</span>
+                                    <button v-if="c.wechat" class="h-7 px-2 border border-border text-black/70"
+                                        @click="copyText(c.id, 'wechat', c.wechat)">
+                                        {{ t('admin.contacts.actions.copy') }}
+                                    </button>
+                                    <span v-if="copied?.id === c.id && copied?.field === 'wechat'"
+                                        class="text-[11px] text-green-700">{{ t('admin.contacts.actions.copied')
+                                        }}</span>
+                                </div>
+                            </td>
                             <td class="p-3 min-w-[240px] text-black/70">{{ c.message }}</td>
                             <td class="p-3 min-w-[200px] text-black/60">{{ c.sourcePage }}</td>
                             <td class="p-3">
@@ -157,10 +238,29 @@ onMounted(load)
                                     class="h-8 px-3 border border-red-300 bg-white text-red-700 hover:border-red-500 transition-none disabled:opacity-60">
                                     {{ t('admin.actions.delete') }}
                                 </button>
+                                <button v-if="c.status !== 'contacted'" :disabled="loading"
+                                    @click="setStatus(c.id, 'contacted')"
+                                    class="ml-2 h-8 px-3 border border-border bg-white text-black/70 hover:border-black/40 transition-none disabled:opacity-60">
+                                    {{ t('admin.contacts.actions.markContacted') }}
+                                </button>
+                                <button v-if="c.status !== 'closed'" :disabled="loading"
+                                    @click="setStatus(c.id, 'closed')"
+                                    class="ml-2 h-8 px-3 border border-border bg-white text-black/70 hover:border-black/40 transition-none disabled:opacity-60">
+                                    {{ t('admin.contacts.actions.close') }}
+                                </button>
                             </td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div v-if="!loading && items.length === 0" class="mt-6 border border-border p-6 text-center">
+                <div class="font-display text-lg uppercase tracking-wider">{{ t('admin.contacts.emptyTitle') }}</div>
+                <div class="mt-2 font-mono text-xs text-black/60">{{ t('admin.contacts.emptyBody') }}</div>
+                <button @click="load"
+                    class="mt-4 h-9 px-3 border border-border font-mono text-xs uppercase tracking-[0.25em]">
+                    {{ t('admin.actions.refresh') }}
+                </button>
             </div>
         </div>
     </main>

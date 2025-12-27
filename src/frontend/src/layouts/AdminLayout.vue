@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -19,14 +19,51 @@ const { t, locale } = useI18n()
 
 const me = ref<{ id: number; email: string; role: string } | null>(null)
 
+const contactsNewCount = ref(0)
+let contactsCountTimer: number | null = null
+
+const loadContactsNewCount = async (force = false) => {
+    try {
+        const qs = force ? '?force=true' : ''
+        const res = await adminGet<{ count: number }>(`/api/v1/admin/contacts/unread-count${qs}`)
+        const n = typeof res?.count === 'number' ? res.count : Number((res as any)?.count)
+        contactsNewCount.value = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+    } catch {
+        // Best-effort: keep UX stable even if the count endpoint fails.
+    }
+}
+
+const renderMenuLabel = (label: string, badgeCount?: number) => {
+    const n = badgeCount ?? 0
+    return () =>
+        h(
+            'div',
+            { class: 'w-full flex items-center justify-between gap-2 pr-1' },
+            [
+                h('span', label),
+                n > 0
+                    ? h(
+                        'span',
+                        {
+                            class: 'inline-flex min-w-[18px] h-[18px] px-1 items-center justify-center rounded-full bg-red-600 text-white text-[11px] leading-none',
+                            title: String(n),
+                        },
+                        n > 99 ? '99+' : String(n)
+                    )
+                    : null,
+            ]
+        )
+}
+
 const menuOptions = computed<MenuOption[]>(() => {
     // ensure reactivity when locale changes
     void locale.value
+    void contactsNewCount.value
     return [
         { key: 'admin-home', label: t('admin.nav.dashboard') },
         { key: 'admin-products', label: t('admin.nav.products') },
         { key: 'admin-updates', label: t('admin.nav.updates') },
-        { key: 'admin-contacts', label: t('admin.nav.contacts') },
+        { key: 'admin-contacts', label: renderMenuLabel(t('admin.nav.contacts'), contactsNewCount.value) },
         { key: 'admin-events', label: t('admin.nav.events') },
     ]
 })
@@ -85,7 +122,19 @@ const { message, dialog, unmount } = createDiscreteApi(['message', 'dialog'], {
 onBeforeUnmount(() => {
     // Unmount discrete APIs to avoid leaking DOM between route changes.
     unmount?.()
+
+    if (contactsCountTimer !== null) {
+        window.clearInterval(contactsCountTimer)
+        contactsCountTimer = null
+    }
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('admin:contacts:changed', onContactsChanged as any)
+    }
 })
+
+const onContactsChanged = () => {
+    void loadContactsNewCount(true)
+}
 
 onMounted(async () => {
     try {
@@ -97,6 +146,12 @@ onMounted(async () => {
         }
         // Non-auth errors: keep layout but show minimal info.
         me.value = null
+    }
+
+    void loadContactsNewCount()
+    if (typeof window !== 'undefined') {
+        window.addEventListener('admin:contacts:changed', onContactsChanged as any)
+        contactsCountTimer = window.setInterval(() => void loadContactsNewCount(), 30_000)
     }
 })
 
