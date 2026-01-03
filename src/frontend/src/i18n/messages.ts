@@ -26,6 +26,7 @@ export const messages = {
             wechat: 'WeChat',
             email: 'Email',
             legal: '© 2025 FLEURLIS · SUZHOU · EST. 2017',
+            icp: '苏ICP备2025229492号-1',
         },
         hero: {
             label: '// INTRODUCTION_THEATRE',
@@ -189,6 +190,7 @@ SOURCE FACTORY · GLOBAL SUPPLY`,
             wechat: '微信',
             email: '邮箱',
             legal: '© 2025 FLEURLIS · 始于 2017 · 苏州',
+            icp: '苏ICP备2025229492号-1',
         },
         hero: {
             label: '// INTRODUCTION_THEATRE',

@@ -295,6 +295,11 @@ const mobileNavItems = computed(() => [
                     <a href="#" class="nav-link">{{ t('footer.email') }}</a>
                 </div>
                 <p class="site-footer__legal">{{ t('footer.legal') }}</p>
+                <p class="site-footer__legal mt-2 tracking-[0.22em]">
+                    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" class="nav-link">
+                        {{ t('footer.icp') }}
+                    </a>
+                </p>
             </footer>
         </main>
     </div>
