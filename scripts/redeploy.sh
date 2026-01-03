@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # Ubuntu/Linux redeploy helper
-# - Builds frontend (pnpm install + pnpm build)
+# - Builds frontend (pnpm install + pnpm build-only by default)
 # - Then runs backend (go run .)
 #
 # Why this order?
@@ -19,13 +19,18 @@ LOG_FILE="$ROOT_DIR/.backend-go-run.log"
 usage() {
   cat <<'EOF'
 Usage:
-  ./scripts/redeploy.sh [--daemon]
+  ./scripts/redeploy.sh [--daemon] [--frontend-build <build|build-only|skip>]
 
 Options:
   --daemon   Run backend in background (nohup) and write pid/log in repo root.
+  --frontend-build <build|build-only|skip>
+             Which pnpm script to run for frontend build.
+             - build      : runs type-check + build (your package.json runs them in parallel)
+             - build-only : runs only vite build (lower peak memory; recommended on 2C2G)
+             - skip       : do not build frontend
 
 Default behavior:
-  1) cd src/frontend  -> pnpm install  -> pnpm build
+  1) cd src/frontend  -> pnpm install  -> pnpm build-only
   2) cd src/backend   -> go run .      (foreground, blocking)
 EOF
 }
@@ -61,34 +66,58 @@ stop_existing_backend_if_any() {
 }
 
 DAEMON=0
-case "${1:-}" in
-  --daemon)
-    DAEMON=1
-    ;;
-  "" )
-    ;;
-  -h|--help)
-    usage
-    exit 0
-    ;;
-  *)
-    echo "[ERROR] Unknown option: $1" >&2
-    usage >&2
-    exit 2
-    ;;
-esac
+FRONTEND_BUILD="build-only"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --daemon)
+      DAEMON=1
+      shift
+      ;;
+    --frontend-build)
+      FRONTEND_BUILD="${2:-}"
+      shift 2
+      ;;
+    --frontend-build=*)
+      FRONTEND_BUILD="${1#*=}"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "[ERROR] Unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
 
 require_cmd go
 require_cmd pnpm
 
-echo "[INFO] Building frontend..."
+echo "[INFO] Building frontend (pnpm ${FRONTEND_BUILD})..."
 cd "$FRONTEND_DIR"
 if [[ "${CI:-}" == "true" || "${CI:-}" == "1" ]]; then
   pnpm install --frozen-lockfile
 else
   pnpm install
 fi
-pnpm build
+
+case "$FRONTEND_BUILD" in
+  skip)
+    echo "[INFO] Skipping frontend build."
+    ;;
+  build|build-only)
+    pnpm "$FRONTEND_BUILD"
+    ;;
+  *)
+    echo "[ERROR] Invalid --frontend-build value: ${FRONTEND_BUILD}" >&2
+    echo "[ERROR] Allowed values: build | build-only | skip" >&2
+    exit 2
+    ;;
+esac
 
 echo "[INFO] Starting backend..."
 cd "$BACKEND_DIR"
